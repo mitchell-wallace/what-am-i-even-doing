@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 
 // --- State Definitions ---
 const tasks = ref([])
@@ -25,6 +25,26 @@ const dragOverIndex = ref(null)
 // PWA Install state
 const deferredPrompt = ref(null)
 const showInstallBtn = ref(false)
+
+// Capped state watch
+const isAttentionCappedJustTriggered = ref(false)
+let capTimer = null
+
+watch(() => tasks.value.length, (newLength) => {
+  if (newLength >= 5) {
+    isAttentionCappedJustTriggered.value = true
+    if (capTimer) clearTimeout(capTimer)
+    capTimer = setTimeout(() => {
+      isAttentionCappedJustTriggered.value = false
+    }, 10000)
+  } else {
+    isAttentionCappedJustTriggered.value = false
+    if (capTimer) {
+      clearTimeout(capTimer)
+      capTimer = null
+    }
+  }
+}, { immediate: true })
 
 // --- LocalStorage Keys ---
 const STORAGE_KEYS = {
@@ -405,7 +425,11 @@ async function triggerInstall() {
           v-model="newTaskName" 
           type="text" 
           class="neo-input" 
-          placeholder="Add a priority..."
+          :class="{ 
+            'input-capped-fresh': tasks.length >= 5 && isAttentionCappedJustTriggered, 
+            'input-capped-dimmed': tasks.length >= 5 && !isAttentionCappedJustTriggered 
+          }"
+          :placeholder="tasks.length >= 5 ? 'ATTENTION FULL: 5/5' : 'Add a priority...'"
           :disabled="tasks.length >= 5"
           maxlength="80"
         />
@@ -417,10 +441,6 @@ async function triggerInstall() {
           +
         </button>
       </form>
-      <!-- Limit Warning -->
-      <div v-if="tasks.length >= 5" class="warning-banner">
-        ⚠️ Attention capped! Complete a task to add more.
-      </div>
     </div>
 
     <!-- Active Focus Banner -->
@@ -620,9 +640,15 @@ async function triggerInstall() {
               :key="item.id" 
               class="history-item"
             >
-              <div class="history-item-check">✓</div>
+              <div class="history-item-check">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="4">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
               <div class="history-item-details">
                 <span class="history-item-name">{{ item.name }}</span>
+              </div>
+              <div class="history-item-meta">
                 <span class="history-item-time">{{ item.doneAt }}</span>
               </div>
             </div>
@@ -731,15 +757,77 @@ async function triggerInstall() {
   flex-shrink: 0;
 }
 
-.warning-banner {
-  background-color: var(--accent-orange);
-  color: #000000;
-  border: 2px solid var(--border-color);
-  font-size: 12px;
-  font-weight: 800;
-  padding: 6px;
+.neo-input {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.15s ease, 
+              background-color 0.2s ease, 
+              border-color 0.2s ease, 
+              color 0.2s ease;
+}
+
+.neo-input:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-main);
+}
+
+.neo-input:focus:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-main);
+}
+
+.neo-input.input-capped-fresh {
+  background-color: var(--accent-orange) !important;
+  color: #000000 !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-main) !important;
   text-align: center;
-  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  animation: warning-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.neo-input.input-capped-fresh::placeholder {
+  color: #000000 !important;
+  opacity: 0.9;
+}
+
+.neo-input.input-capped-dimmed {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--text-muted) !important;
+  box-shadow: none !important;
+  text-align: center;
+  font-weight: 700;
+  transition: background-color 1s ease, color 1s ease, border-color 1s ease, box-shadow 1s ease;
+}
+
+.neo-input.input-capped-dimmed::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.6;
+}
+
+@keyframes warning-pulse {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0.99);
+  }
+}
+
+.add-btn:disabled {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg-card),
+    var(--bg-card) 6px,
+    var(--text-muted) 6px,
+    var(--text-muted) 8px
+  ) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--text-muted) !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* Focus Indicator Banner */
@@ -1068,35 +1156,75 @@ async function triggerInstall() {
 
 .history-item {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   background-color: var(--bg-card);
-  border: 2px solid var(--border-color);
-  padding: 8px 12px;
+  border: 2.5px solid var(--border-color);
+  box-shadow: 2px 2px 0px 0px var(--shadow-color);
+  padding: 10px 14px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.history-item:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px var(--shadow-color);
+  border-color: var(--accent-green);
 }
 
 .history-item-check {
-  color: var(--accent-green);
-  font-weight: 900;
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background-color: var(--accent-green);
+  color: var(--text-on-accent);
+  border: 2px solid var(--border-color);
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+  flex-shrink: 0;
+}
+
+.history-item-check svg {
+  color: #000000;
+}
+
+/* Ensure check icon color handles dark mode theme overrides appropriately */
+.dark-theme .history-item-check svg {
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light-theme) .history-item-check svg {
+    color: #ffffff;
+  }
 }
 
 .history-item-details {
-  display: flex;
-  flex-direction: column;
+  flex-grow: 1;
   min-width: 0;
 }
 
 .history-item-name {
   font-size: 14px;
   font-weight: 700;
+  color: var(--text-main);
   word-break: break-word;
+}
+
+.history-item-meta {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .history-item-time {
   font-size: 10px;
-  color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 800;
+  text-transform: uppercase;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  border: 1.5px solid var(--border-color);
+  padding: 2px 6px;
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
 }
 
 .drawer-footer {
