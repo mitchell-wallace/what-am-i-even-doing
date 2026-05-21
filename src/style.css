@@ -1,0 +1,228 @@
+/* Color themes definition */
+:root {
+  --bg-primary: #faf8f5; /* Warm light gray/cream */
+  --bg-card: #ffffff;
+  --text-main: #1b1b1b;
+  --text-muted: #666666;
+  --border-color: #000000;
+  --shadow-color: #000000;
+  
+  /* Neobrutalist Accents */
+  --accent-active: #ffde4d; /* High-contrast Attention Yellow */
+  --accent-pink: #ff6097;   /* Playful Brutalist Pink */
+  --accent-green: #37eb89;  /* Checkbox Completed Green */
+  --accent-blue: #3d7cff;   /* Accent Button Blue */
+  --accent-orange: #ff7849; /* High-attention Orange */
+  
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --border-width: 3px;
+  
+  --shadow-main: 4px 4px 0px 0px var(--shadow-color);
+  --shadow-hover: 2px 2px 0px 0px var(--shadow-color);
+  --shadow-active: 0px 0px 0px 0px var(--shadow-color);
+}
+
+/* Explicit Light Theme class override */
+.light-theme {
+  --bg-primary: #faf8f5;
+  --bg-card: #ffffff;
+  --text-main: #1b1b1b;
+  --text-muted: #666666;
+  --border-color: #000000;
+  --shadow-color: #000000;
+}
+
+/* Explicit Dark Theme class override */
+.dark-theme {
+  --bg-primary: #121212;
+  --bg-card: #1c1c1c;
+  --text-main: #ffffff;
+  --text-muted: #aaaaaa;
+  --border-color: #ffffff;
+  --shadow-color: #ffffff;
+}
+
+/* System dark theme fallback if no manual class overrides are active */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light-theme) {
+    --bg-primary: #121212;
+    --bg-card: #1c1c1c;
+    --text-main: #ffffff;
+    --text-muted: #aaaaaa;
+    --border-color: #ffffff;
+    --shadow-color: #ffffff;
+  }
+}
+
+/* Reset and Layout */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border: 1px solid var(--bg-primary);
+}
+
+/* Card base */
+.neo-card {
+  background-color: var(--bg-card);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-main);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Neobrutalist Button styles */
+.neo-btn {
+  font-family: var(--font-main);
+  font-weight: 800;
+  text-transform: uppercase;
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-hover);
+  padding: 8px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  user-select: none;
+  transition: transform 0.05s ease, box-shadow 0.05s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.neo-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-main);
+}
+
+.neo-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+}
+
+.neo-btn-pink {
+  background-color: var(--accent-pink);
+  color: #000000;
+}
+
+.neo-btn-yellow {
+  background-color: var(--accent-active);
+  color: #000000;
+}
+
+.neo-btn-blue {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+}
+
+.neo-btn-orange {
+  background-color: var(--accent-orange);
+  color: #000000;
+}
+
+/* Input Fields */
+.neo-input {
+  font-family: var(--font-main);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border: var(--border-width) solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  outline: none;
+  width: 100%;
+  box-shadow: var(--shadow-hover);
+  transition: box-shadow 0.1s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.neo-input:focus {
+  box-shadow: var(--shadow-main);
+}
+
+/* Custom checkbox */
+.neo-checkbox-container {
+  display: inline-flex;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  align-items: center;
+}
+
+.neo-checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.neo-checkmark {
+  height: 24px;
+  width: 24px;
+  background-color: var(--bg-card);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+  transition: background-color 0.1s ease, transform 0.1s ease, border-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.neo-checkbox-container:hover input ~ .neo-checkmark {
+  background-color: var(--bg-primary);
+}
+
+.neo-checkbox-container input:checked ~ .neo-checkmark {
+  background-color: var(--accent-green);
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+/* Animated drag states */
+.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  border-style: dashed;
+}
+
+/* Responsive Small Screens Layout Shift */
+@media (max-width: 480px) {
+  body {
+    padding: 0;
+    background-color: var(--bg-card); /* Remove outer body background */
+  }
+  
+  .app-container {
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

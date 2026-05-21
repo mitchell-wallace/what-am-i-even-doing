@@ -1,0 +1,18 @@
+{
+  "name": "what am I even doing",
+  "short_name": "WAIED",
+  "description": "A simple, neobrutalist attention-management todo list.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#FAF8F5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
