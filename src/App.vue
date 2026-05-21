@@ -16,9 +16,16 @@ const pools = [
   ["am", "was", "are", "be", "is"],
   ["I", "we", "you", "they", "one", "everyone"],
   ["even", "actually", "really", "literally", "honestly", "currently"],
-  ["doing?", "debugging?", "designing?", "developing?", "dreaming?", "destroying?", "deciding?", "deploying?", "drawing?", "dancing?", "drinking?"]
+  ["doing?", "debugging?", "designing?", "developing?", "dreaming?", "destroying?", "deciding?", "deploying?", "drawing?", "dancing?", "drinking?", "making?"]
 ]
 const taglineWords = ref([...originalWords])
+
+const editingTaglineIdx = ref(null)
+const editingTaglineValue = ref('')
+const taglineInputRef = ref(null)
+
+const clickTimeout = ref(null)
+const clickTimeoutIdx = ref(null)
 
 const logoLetters = computed(() => {
   return taglineWords.value.map(word => {
@@ -47,6 +54,10 @@ function resetTaglineWords() {
     taglineWordStates.value[idx].flashing = false
   })
   activeFlashes.value = {}
+  
+  // Clear editing state
+  editingTaglineIdx.value = null
+  editingTaglineValue.value = ''
   
   // Set back to original words
   taglineWords.value = [...originalWords]
@@ -89,6 +100,26 @@ function flashWord(idx) {
 }
 
 function clickWord(idx) {
+  if (clickTimeout.value !== null && clickTimeoutIdx.value === idx) {
+    clearTimeout(clickTimeout.value)
+    clickTimeout.value = null
+    clickTimeoutIdx.value = null
+    return
+  }
+  
+  if (clickTimeout.value !== null) {
+    clearTimeout(clickTimeout.value)
+  }
+  
+  clickTimeoutIdx.value = idx
+  clickTimeout.value = setTimeout(() => {
+    clickTimeout.value = null
+    clickTimeoutIdx.value = null
+    cycleWord(idx)
+  }, 220)
+}
+
+function cycleWord(idx) {
   // Cancel active flash/hover timer so it doesn't restore to the old word
   if (activeFlashes.value[idx]) {
     clearTimeout(activeFlashes.value[idx])
@@ -113,6 +144,49 @@ function clickWord(idx) {
   startResetTimer()
 }
 
+function startEditingTagline(idx) {
+  if (resetTimer) {
+    clearTimeout(resetTimer)
+    resetTimer = null
+  }
+  
+  if (activeFlashes.value[idx]) {
+    clearTimeout(activeFlashes.value[idx])
+    delete activeFlashes.value[idx]
+    delete originalSaved[idx]
+    taglineWordStates.value[idx].flashing = false
+  }
+  
+  editingTaglineIdx.value = idx
+  editingTaglineValue.value = taglineWords.value[idx]
+  
+  nextTick(() => {
+    if (taglineInputRef.value && taglineInputRef.value[0]) {
+      taglineInputRef.value[0].focus()
+      taglineInputRef.value[0].select()
+    }
+  })
+}
+
+function saveTaglineWord(idx) {
+  if (editingTaglineIdx.value !== idx) return
+  
+  const val = editingTaglineValue.value.trim()
+  if (val) {
+    taglineWords.value[idx] = val
+  }
+  
+  editingTaglineIdx.value = null
+  editingTaglineValue.value = ''
+  startResetTimer()
+}
+
+function cancelEditingTagline() {
+  editingTaglineIdx.value = null
+  editingTaglineValue.value = ''
+  startResetTimer()
+}
+
 function toggleDottedLineDirection() {
   isDottedLineReversed.value = !isDottedLineReversed.value
   isDottedLineClicked.value = true
@@ -123,6 +197,7 @@ function toggleDottedLineDirection() {
 
 onBeforeUnmount(() => {
   if (resetTimer) clearTimeout(resetTimer)
+  if (clickTimeout.value) clearTimeout(clickTimeout.value)
   Object.keys(activeFlashes.value).forEach(idx => {
     clearTimeout(activeFlashes.value[idx])
   })
@@ -522,7 +597,7 @@ async function triggerInstall() {
         <h1 class="logo-text" aria-label="WAIED?">
           <span 
             v-for="(char, idx) in logoLetters" 
-            :key="idx + '-' + char" 
+            :key="idx + '-' + taglineWords[idx]" 
             class="logo-letter logo-letter-anim"
           >
             {{ char }}
@@ -571,21 +646,35 @@ async function triggerInstall() {
       <p 
         class="tagline" 
         @click.stop
-        title="Hover a word to flash it, or click to change it!"
+        title="Hover a word to flash it, click to cycle it, or double-click to edit!"
       >
-        <span 
-          v-for="(word, idx) in taglineWords" 
-          :key="idx" 
-          class="tagline-word"
-          :class="{
-            'is-flashing': taglineWordStates[idx].flashing,
-            'is-clicked': taglineWordStates[idx].clicked
-          }"
-          @mouseenter="flashWord(idx)"
-          @click.stop="clickWord(idx)"
-        >
-          {{ word }}
-        </span>
+        <template v-for="(word, idx) in taglineWords" :key="idx">
+          <span 
+            v-if="editingTaglineIdx !== idx"
+            class="tagline-word"
+            :class="{
+              'is-flashing': taglineWordStates[idx].flashing,
+              'is-clicked': taglineWordStates[idx].clicked
+            }"
+            @mouseenter="flashWord(idx)"
+            @click.stop="clickWord(idx)"
+            @dblclick.stop="startEditingTagline(idx)"
+          >
+            {{ word }}
+          </span>
+          <input
+            v-else
+            ref="taglineInputRef"
+            v-model="editingTaglineValue"
+            type="text"
+            class="edit-tagline-input"
+            @blur="saveTaglineWord(idx)"
+            @keyup.enter="saveTaglineWord(idx)"
+            @keyup.escape="cancelEditingTagline"
+            @click.stop
+            maxlength="20"
+          />
+        </template>
       </p>
       
       <!-- Dotted Line Divider -->
@@ -903,8 +992,8 @@ async function triggerInstall() {
 .dotted-line::before {
   content: '';
   position: absolute;
-  top: -8px;
-  bottom: -8px;
+  top: -10px;
+  bottom: -10px;
   left: 0;
   right: 0;
   cursor: pointer;
@@ -1000,6 +1089,21 @@ async function triggerInstall() {
   user-select: none;
   display: inline-flex;
   gap: 4px;
+}
+
+.edit-tagline-input {
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-main);
+  background-color: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  padding: 1px 4px;
+  width: 75px;
+  outline: none;
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+  margin-top: -2px;
 }
 
 .tagline-word {
