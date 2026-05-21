@@ -424,7 +424,7 @@ async function triggerInstall() {
     </div>
 
     <!-- Active Focus Banner -->
-    <div v-if="tasks.length > 0" class="focus-indicator">
+    <div v-if="tasks.length > 0" :key="activeTaskId" class="focus-indicator pop-focus">
       <div class="focus-indicator-header">
         <span class="indicator-tag">CURRENT FOCUS</span>
         <!-- Assignee Toggles -->
@@ -432,12 +432,12 @@ async function triggerInstall() {
           <button 
             class="assignee-toggle-btn"
             :class="{ 'active-human': tasks.find(t => t.id === activeTaskId)?.assignee === 'human' }"
-            @click="toggleAssignee('human')"
+            @click.stop="toggleAssignee('human')"
             title="Mark as Human task"
             aria-label="Mark as Human task"
           >
             <!-- Human SVG -->
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
               <rect x="9" y="4" width="6" height="6" fill="currentColor" fill-opacity="0.1" />
               <line x1="12" y1="10" x2="12" y2="13" />
               <path d="M5 18c0-3 2-5 5-5h4c3 0 5 2 5 5" />
@@ -446,12 +446,12 @@ async function triggerInstall() {
           <button 
             class="assignee-toggle-btn"
             :class="{ 'active-robot': tasks.find(t => t.id === activeTaskId)?.assignee === 'robot' }"
-            @click="toggleAssignee('robot')"
+            @click.stop="toggleAssignee('robot')"
             title="Mark as AI Robot task"
             aria-label="Mark as AI Robot task"
           >
             <!-- Robot SVG -->
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
               <rect x="6" y="6" width="12" height="12" fill="currentColor" fill-opacity="0.1" />
               <rect x="9" y="10" width="1.5" height="1.5" fill="currentColor" />
               <rect x="13.5" y="10" width="1.5" height="1.5" fill="currentColor" />
@@ -476,8 +476,10 @@ async function triggerInstall() {
         <p class="empty-subtitle">Add a task above to start focusing.</p>
       </div>
 
-      <div 
+      <TransitionGroup 
         v-else 
+        name="list" 
+        tag="div" 
         class="tasks-list"
       >
         <div 
@@ -546,25 +548,27 @@ async function triggerInstall() {
           </div>
 
           <!-- Assignee Badge -->
-          <div v-if="task.assignee" class="task-assignee-badge" :class="`badge-${task.assignee}`" :title="`Assigned to: ${task.assignee}`">
-            <!-- Human Badge Icon -->
-            <svg v-if="task.assignee === 'human'" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
-              <rect x="9" y="4" width="6" height="6" fill="currentColor" fill-opacity="0.1" />
-              <line x1="12" y1="10" x2="12" y2="13" />
-              <path d="M5 18c0-3 2-5 5-5h4c3 0 5 2 5 5" />
-            </svg>
-            <!-- Robot Badge Icon -->
-            <svg v-else-if="task.assignee === 'robot'" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
-              <rect x="6" y="6" width="12" height="12" fill="currentColor" fill-opacity="0.1" />
-              <rect x="9" y="10" width="1.5" height="1.5" fill="currentColor" />
-              <rect x="13.5" y="10" width="1.5" height="1.5" fill="currentColor" />
-              <line x1="10" y1="14" x2="14" y2="14" />
-              <line x1="12" y1="6" x2="12" y2="3" />
-              <circle cx="12" cy="2" r="1" fill="currentColor" />
-              <rect x="4" y="10" width="2" height="4" />
-              <rect x="18" y="10" width="2" height="4" />
-            </svg>
-          </div>
+          <Transition name="badge">
+            <div v-if="task.assignee" class="task-assignee-badge" :class="`badge-${task.assignee}`" :title="`Assigned to: ${task.assignee}`">
+              <!-- Human Badge Icon -->
+              <svg v-if="task.assignee === 'human'" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
+                <rect x="9" y="4" width="6" height="6" fill="currentColor" fill-opacity="0.1" />
+                <line x1="12" y1="10" x2="12" y2="13" />
+                <path d="M5 18c0-3 2-5 5-5h4c3 0 5 2 5 5" />
+              </svg>
+              <!-- Robot Badge Icon -->
+              <svg v-else-if="task.assignee === 'robot'" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
+                <rect x="6" y="6" width="12" height="12" fill="currentColor" fill-opacity="0.1" />
+                <rect x="9" y="10" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="13.5" y="10" width="1.5" height="1.5" fill="currentColor" />
+                <line x1="10" y1="14" x2="14" y2="14" />
+                <line x1="12" y1="6" x2="12" y2="3" />
+                <circle cx="12" cy="2" r="1" fill="currentColor" />
+                <rect x="4" y="10" width="2" height="4" />
+                <rect x="18" y="10" width="2" height="4" />
+              </svg>
+            </div>
+          </Transition>
 
           <!-- Delete Button (Only displays on hover/edit) -->
           <button 
@@ -575,7 +579,7 @@ async function triggerInstall() {
             ✕
           </button>
         </div>
-      </div>
+      </TransitionGroup>
     </main>
 
     <!-- Most Recently Done Banner -->
@@ -789,6 +793,7 @@ async function triggerInstall() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative; /* Essential for TransitionGroup absolute leaves */
 }
 
 .task-item {
@@ -801,7 +806,7 @@ async function triggerInstall() {
   box-shadow: 2px 2px 0px 0px var(--shadow-color);
   user-select: none;
   position: relative;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .task-item:hover {
@@ -865,12 +870,43 @@ async function triggerInstall() {
 
 .check-svg {
   opacity: 0;
-  transition: opacity 0.1s ease;
+  transform: scale(0) rotate(-15deg);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s ease;
 }
 
 .neo-checkbox-container input:checked ~ .neo-checkmark .check-svg {
   opacity: 1;
+  transform: scale(1) rotate(0deg);
   color: #000000;
+}
+
+.neo-checkmark {
+  height: 24px;
+  width: 24px;
+  background-color: var(--bg-card);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+  transition: background-color 0.1s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.neo-checkbox-container:hover .neo-checkmark {
+  transform: scale(1.1) translate(-0.5px, -0.5px);
+  box-shadow: 1.5px 1.5px 0px 0px var(--shadow-color);
+  background-color: var(--bg-primary);
+}
+
+.neo-checkbox-container input:checked ~ .neo-checkmark {
+  background-color: var(--accent-green);
+  box-shadow: none;
+  transform: translate(1px, 1px) scale(0.95);
+}
+
+.neo-checkbox-container input:checked:hover ~ .neo-checkmark {
+  transform: translate(1px, 1px) scale(1);
+  box-shadow: none;
 }
 
 .delete-btn {
@@ -879,15 +915,30 @@ async function triggerInstall() {
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  padding: 4px 8px;
-  margin-left: 6px;
+  padding: 0;
+  margin-left: 0;
   opacity: 0;
   color: var(--text-main);
-  transition: opacity 0.1s ease;
+  transition: opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              width 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              margin-left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: 0;
+  overflow: hidden;
+  transform: scale(0) rotate(-45deg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .task-item:hover .delete-btn {
   opacity: 0.8;
+  width: 24px;
+  margin-left: 8px;
+  padding: 4px 8px;
+  transform: scale(1) rotate(0deg);
 }
 
 .delete-btn:hover {
@@ -1080,6 +1131,17 @@ async function triggerInstall() {
 .focus-assignee-toggles {
   display: flex;
   gap: 6px;
+  opacity: 0;
+  transform: scale(0.6) rotate(10deg);
+  pointer-events: none; /* Disable clicks when hidden */
+  transition: opacity 0.25s cubic-bezier(0.34, 1.75, 0.64, 1), 
+              transform 0.25s cubic-bezier(0.34, 1.75, 0.64, 1);
+}
+
+.focus-indicator:hover .focus-assignee-toggles {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+  pointer-events: auto; /* Enable clicks when visible */
 }
 
 .assignee-toggle-btn {
@@ -1087,23 +1149,25 @@ async function triggerInstall() {
   color: var(--text-main);
   border: 2px solid var(--border-color);
   box-shadow: 1.5px 1.5px 0px 0px var(--shadow-color);
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  transition: transform 0.05s ease, box-shadow 0.05s ease, background-color 0.1s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.2s ease, 
+              background-color 0.15s ease;
 }
 
 .assignee-toggle-btn:hover {
-  transform: translate(-0.5px, -0.5px);
+  transform: translate(-2px, -2px) scale(1.1);
   box-shadow: 2px 2px 0px 0px var(--shadow-color);
 }
 
 .assignee-toggle-btn:active {
-  transform: translate(0.5px, 0.5px);
+  transform: translate(1px, 1px) scale(0.95);
   box-shadow: 0.5px 0.5px 0px 0px var(--shadow-color);
 }
 
@@ -1127,12 +1191,21 @@ async function triggerInstall() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid var(--border-color);
-  box-shadow: 1px 1px 0px 0px var(--shadow-color);
-  margin-left: 6px;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--border-color);
+  box-shadow: 1.5px 1.5px 0px 0px var(--shadow-color);
+  margin-left: auto; /* Push badge to the right edge */
   flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 0.2s ease,
+              color 0.2s ease;
+}
+
+.task-item:hover .task-assignee-badge {
+  transform: scale(1.15) rotate(-8deg);
+  box-shadow: 2.5px 2.5px 0px 0px var(--shadow-color);
 }
 
 .task-assignee-badge.badge-human {
@@ -1149,5 +1222,97 @@ async function triggerInstall() {
 .task-item.active-task .assignee-toggle-btn {
   border-color: #000000;
   box-shadow: 1px 1px 0px 0px #000000;
+}
+
+/* Transitions for Task List & Badges */
+.list-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.7, 0.64, 1);
+}
+.list-leave-active {
+  transition: all 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  position: absolute;
+  width: 100%;
+  z-index: 1;
+}
+.list-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateY(20px) rotate(-2deg);
+}
+.list-leave-to {
+  opacity: 0;
+  transform: scale(0.8) translateY(-20px) rotate(2deg);
+}
+.list-move {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Badge pop transition */
+.badge-enter-active {
+  animation: badge-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.badge-leave-active {
+  animation: badge-pop 0.2s reverse ease-in;
+}
+@keyframes badge-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Snappy entrance when changing active focus task */
+.pop-focus {
+  animation: focus-snap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes focus-snap {
+  0% {
+    transform: scale(0.92) translateY(4px);
+    box-shadow: 0px 0px 0px 0px var(--shadow-color);
+  }
+  50% {
+    transform: scale(1.03) translateY(-2px);
+    box-shadow: 6px 6px 0px 0px var(--shadow-color);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    box-shadow: 2px 2px 0px 0px var(--shadow-color);
+  }
+}
+
+/* Snappy pop-entry for done banner */
+.pop-entry {
+  animation: spring-entry 0.35s cubic-bezier(0.34, 1.75, 0.64, 1) forwards;
+}
+@keyframes spring-entry {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Snappy pop animations on other elements */
+.neo-btn {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.toggle-theme-btn svg,
+.toggle-history-btn svg {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.toggle-theme-btn:hover svg,
+.toggle-history-btn:hover svg {
+  transform: scale(1.15) rotate(8deg);
+}
+.toggle-theme-btn:active svg,
+.toggle-history-btn:active svg {
+  transform: scale(0.9) rotate(-8deg);
 }
 </style>
