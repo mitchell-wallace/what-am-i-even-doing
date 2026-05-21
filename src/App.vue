@@ -675,14 +675,15 @@ async function triggerInstall() {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: #000000; /* Ensure text remains highly readable on bright yellow */
+  color: var(--text-on-accent); /* Ensure text remains highly readable */
 }
 
 .indicator-tag {
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 1px;
-  color: #333333;
+  color: var(--text-on-accent);
+  opacity: 0.8;
 }
 
 .focus-title {
@@ -742,7 +743,7 @@ async function triggerInstall() {
   border-width: var(--border-width);
   box-shadow: 4px 4px 0px 0px var(--shadow-color);
   transform: translate(-2px, -2px);
-  color: #000000; /* Ensure text remains readable */
+  color: var(--text-on-accent); /* Ensure text remains readable */
 }
 
 .task-item.active-task:hover {
