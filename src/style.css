@@ -45,8 +45,9 @@
   --text-on-accent: #ffffff; /* White text on active/gold/magenta in dark mode */
   
   /* Dark Mode Accent Overrides (less bright) */
-  --accent-active: #cda509; /* Deep Gold */
+  --accent-active: #b08b00; /* Darker Gold */
   --accent-pink: #c2185b;   /* Deeper Magenta */
+  --accent-green: #1b8b4c;  /* Darker neobrutalist green for done state */
 }
 
 /* System dark theme fallback if no manual class overrides are active */
@@ -61,8 +62,9 @@
     --text-on-accent: #ffffff;
     
     /* Dark Mode Accent Overrides (less bright) */
-    --accent-active: #cda509; /* Deep Gold */
+    --accent-active: #b08b00; /* Darker Gold */
     --accent-pink: #c2185b;   /* Deeper Magenta */
+    --accent-green: #1b8b4c;  /* Darker neobrutalist green for done state */
   }
 }
 

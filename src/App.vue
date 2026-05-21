@@ -842,7 +842,7 @@ async function triggerInstall() {
 .last-done-banner {
   width: 100%;
   background-color: var(--accent-green);
-  color: #000000;
+  color: var(--text-on-accent);
   border-width: var(--border-width);
   box-shadow: var(--shadow-hover);
   padding: 8px 12px;
