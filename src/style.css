@@ -9,9 +9,9 @@
   --text-on-accent: #000000; /* Black text on neon/bright backgrounds */
   
   /* Neobrutalist Accents */
-  --accent-active: #ffde4d; /* High-contrast Attention Yellow */
+  --accent-active: #ffcc00; /* High-contrast Attention Yellow (darkened) */
   --accent-pink: #ff6097;   /* Playful Brutalist Pink */
-  --accent-green: #37eb89;  /* Checkbox Completed Green */
+  --accent-green: #0fa362;  /* Checkbox Completed Green (darkened, like magenta) */
   --accent-blue: #3d7cff;   /* Accent Button Blue */
   --accent-orange: #ff7849; /* High-attention Orange */
   
@@ -45,9 +45,9 @@
   --text-on-accent: #ffffff; /* White text on active/gold/magenta in dark mode */
   
   /* Dark Mode Accent Overrides (less bright) */
-  --accent-active: #b08b00; /* Darker Gold */
+  --accent-active: #8c6e00; /* Darker Gold (shade darker) */
   --accent-pink: #c2185b;   /* Deeper Magenta */
-  --accent-green: #1b8b4c;  /* Darker neobrutalist green for done state */
+  --accent-green: #126d39;  /* Darker neobrutalist green for done state (touch darker) */
 }
 
 /* System dark theme fallback if no manual class overrides are active */
@@ -62,9 +62,9 @@
     --text-on-accent: #ffffff;
     
     /* Dark Mode Accent Overrides (less bright) */
-    --accent-active: #b08b00; /* Darker Gold */
+    --accent-active: #8c6e00; /* Darker Gold (shade darker) */
     --accent-pink: #c2185b;   /* Deeper Magenta */
-    --accent-green: #1b8b4c;  /* Darker neobrutalist green for done state */
+    --accent-green: #126d39;  /* Darker neobrutalist green for done state (touch darker) */
   }
 }
 

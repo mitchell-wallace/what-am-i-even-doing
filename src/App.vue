@@ -45,8 +45,9 @@ function loadState() {
       // Seed starter tasks
       tasks.value = [
         { id: '1', name: '👋 Welcome! Click me to set as active focus.' },
-        { id: '2', name: '✏️ Double-click this task to edit its name.' },
-        { id: '3', name: '↕️ Drag me up or down to reorder the list.' }
+        { id: '2', name: '🤖 Toggle 🤖/👤 in focus box to mark AI/Human work.', assignee: 'robot' },
+        { id: '3', name: '✏️ Double-click this task to edit its name.' },
+        { id: '4', name: '↕️ Drag me up or down to reorder the list.' }
       ]
     }
 
@@ -171,7 +172,7 @@ function addTask() {
   if (tasks.value.length >= 5) return
   
   const newId = Date.now().toString()
-  tasks.value.push({ id: newId, name })
+  tasks.value.push({ id: newId, name, assignee: null })
   newTaskName.value = ''
   
   if (tasks.value.length === 1) {
@@ -186,6 +187,18 @@ function selectTask(id) {
   if (editingTaskId.value) return 
   activeTaskId.value = id
   saveActiveTask()
+}
+
+function toggleAssignee(type) {
+  const activeTask = tasks.value.find(t => t.id === activeTaskId.value)
+  if (!activeTask) return
+  
+  if (activeTask.assignee === type) {
+    activeTask.assignee = null
+  } else {
+    activeTask.assignee = type
+  }
+  saveTasks()
 }
 
 function startEdit(task) {
@@ -412,7 +425,45 @@ async function triggerInstall() {
 
     <!-- Active Focus Banner -->
     <div v-if="tasks.length > 0" class="focus-indicator">
-      <div class="indicator-tag">CURRENT FOCUS</div>
+      <div class="focus-indicator-header">
+        <span class="indicator-tag">CURRENT FOCUS</span>
+        <!-- Assignee Toggles -->
+        <div class="focus-assignee-toggles">
+          <button 
+            class="assignee-toggle-btn"
+            :class="{ 'active-human': tasks.find(t => t.id === activeTaskId)?.assignee === 'human' }"
+            @click="toggleAssignee('human')"
+            title="Mark as Human task"
+            aria-label="Mark as Human task"
+          >
+            <!-- Human SVG -->
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
+              <rect x="9" y="4" width="6" height="6" fill="currentColor" fill-opacity="0.1" />
+              <line x1="12" y1="10" x2="12" y2="13" />
+              <path d="M5 18c0-3 2-5 5-5h4c3 0 5 2 5 5" />
+            </svg>
+          </button>
+          <button 
+            class="assignee-toggle-btn"
+            :class="{ 'active-robot': tasks.find(t => t.id === activeTaskId)?.assignee === 'robot' }"
+            @click="toggleAssignee('robot')"
+            title="Mark as AI Robot task"
+            aria-label="Mark as AI Robot task"
+          >
+            <!-- Robot SVG -->
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
+              <rect x="6" y="6" width="12" height="12" fill="currentColor" fill-opacity="0.1" />
+              <rect x="9" y="10" width="1.5" height="1.5" fill="currentColor" />
+              <rect x="13.5" y="10" width="1.5" height="1.5" fill="currentColor" />
+              <line x1="10" y1="14" x2="14" y2="14" />
+              <line x1="12" y1="6" x2="12" y2="3" />
+              <circle cx="12" cy="2" r="1" fill="currentColor" />
+              <rect x="4" y="10" width="2" height="4" />
+              <rect x="18" y="10" width="2" height="4" />
+            </svg>
+          </button>
+        </div>
+      </div>
       <div class="focus-title">
         {{ tasks.find(t => t.id === activeTaskId)?.name || 'Select a task below' }}
       </div>
@@ -492,6 +543,27 @@ async function triggerInstall() {
             >
               {{ task.name }}
             </span>
+          </div>
+
+          <!-- Assignee Badge -->
+          <div v-if="task.assignee" class="task-assignee-badge" :class="`badge-${task.assignee}`" :title="`Assigned to: ${task.assignee}`">
+            <!-- Human Badge Icon -->
+            <svg v-if="task.assignee === 'human'" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
+              <rect x="9" y="4" width="6" height="6" fill="currentColor" fill-opacity="0.1" />
+              <line x1="12" y1="10" x2="12" y2="13" />
+              <path d="M5 18c0-3 2-5 5-5h4c3 0 5 2 5 5" />
+            </svg>
+            <!-- Robot Badge Icon -->
+            <svg v-else-if="task.assignee === 'robot'" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
+              <rect x="6" y="6" width="12" height="12" fill="currentColor" fill-opacity="0.1" />
+              <rect x="9" y="10" width="1.5" height="1.5" fill="currentColor" />
+              <rect x="13.5" y="10" width="1.5" height="1.5" fill="currentColor" />
+              <line x1="10" y1="14" x2="14" y2="14" />
+              <line x1="12" y1="6" x2="12" y2="3" />
+              <circle cx="12" cy="2" r="1" fill="currentColor" />
+              <rect x="4" y="10" width="2" height="4" />
+              <rect x="18" y="10" width="2" height="4" />
+            </svg>
           </div>
 
           <!-- Delete Button (Only displays on hover/edit) -->
@@ -995,5 +1067,87 @@ async function triggerInstall() {
 .drawer-enter-from,
 .drawer-leave-to {
   transform: translateX(100%);
+}
+
+/* Assignee Toggles styles */
+.focus-indicator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.focus-assignee-toggles {
+  display: flex;
+  gap: 6px;
+}
+
+.assignee-toggle-btn {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 2px solid var(--border-color);
+  box-shadow: 1.5px 1.5px 0px 0px var(--shadow-color);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.05s ease, box-shadow 0.05s ease, background-color 0.1s ease;
+}
+
+.assignee-toggle-btn:hover {
+  transform: translate(-0.5px, -0.5px);
+  box-shadow: 2px 2px 0px 0px var(--shadow-color);
+}
+
+.assignee-toggle-btn:active {
+  transform: translate(0.5px, 0.5px);
+  box-shadow: 0.5px 0.5px 0px 0px var(--shadow-color);
+}
+
+/* Active states */
+.assignee-toggle-btn.active-human {
+  background-color: var(--accent-orange);
+  color: var(--text-on-accent);
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+.assignee-toggle-btn.active-robot {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
+/* Task assignee badges */
+.task-assignee-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--border-color);
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.task-assignee-badge.badge-human {
+  background-color: var(--accent-orange);
+  color: var(--text-on-accent);
+}
+
+.task-assignee-badge.badge-robot {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+}
+
+/* Ensure active-task styling handles color overrides inside the items gracefully */
+.task-item.active-task .assignee-toggle-btn {
+  border-color: #000000;
+  box-shadow: 1px 1px 0px 0px #000000;
 }
 </style>
