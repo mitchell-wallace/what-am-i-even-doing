@@ -48,6 +48,7 @@
   --accent-active: #8c6e00; /* Darker Gold (shade darker) */
   --accent-pink: #c2185b;   /* Deeper Magenta */
   --accent-green: #126d39;  /* Darker neobrutalist green for done state (touch darker) */
+  --accent-orange: #bd3e13; /* Darker Orange */
 }
 
 /* System dark theme fallback if no manual class overrides are active */
@@ -65,6 +66,7 @@
     --accent-active: #8c6e00; /* Darker Gold (shade darker) */
     --accent-pink: #c2185b;   /* Deeper Magenta */
     --accent-green: #126d39;  /* Darker neobrutalist green for done state (touch darker) */
+    --accent-orange: #bd3e13; /* Darker Orange */
   }
 }
 

@@ -1,11 +1,133 @@
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 
 // --- State Definitions ---
 const tasks = ref([])
 const activeTaskId = ref(null)
 const lastDoneTask = ref(null)
+const shouldLastDoneShake = ref(false)
 const history = ref([])
+const isDottedLineReversed = ref(false)
+const isDottedLineClicked = ref(false)
+
+const originalWords = ["What", "am", "I", "even", "doing?"]
+const pools = [
+  ["What", "Why", "Where", "How", "Who", "When"],
+  ["am", "was", "are", "be", "is"],
+  ["I", "we", "you", "they", "one", "everyone"],
+  ["even", "actually", "really", "literally", "honestly", "currently"],
+  ["doing?", "debugging?", "designing?", "developing?", "dreaming?", "destroying?", "deciding?", "deploying?", "drawing?", "dancing?", "drinking?"]
+]
+const taglineWords = ref([...originalWords])
+
+const logoLetters = computed(() => {
+  return taglineWords.value.map(word => {
+    if (!word) return ''
+    return word[0].toUpperCase()
+  })
+})
+
+// Keep track of active flash timeouts and original words before flash
+const activeFlashes = ref({}) // idx -> timer
+const originalSaved = {} // idx -> original word
+const taglineWordStates = ref([
+  { flashing: false, clicked: false },
+  { flashing: false, clicked: false },
+  { flashing: false, clicked: false },
+  { flashing: false, clicked: false },
+  { flashing: false, clicked: false }
+])
+
+let resetTimer = null
+
+function resetTaglineWords() {
+  // Clear any active flashes
+  Object.keys(activeFlashes.value).forEach(idx => {
+    clearTimeout(activeFlashes.value[idx])
+    taglineWordStates.value[idx].flashing = false
+  })
+  activeFlashes.value = {}
+  
+  // Set back to original words
+  taglineWords.value = [...originalWords]
+}
+
+function startResetTimer() {
+  if (resetTimer) clearTimeout(resetTimer)
+  resetTimer = setTimeout(() => {
+    resetTaglineWords()
+    resetTimer = null
+  }, 10000)
+}
+
+function flashWord(idx) {
+  // If already flashing, clear timer first
+  if (activeFlashes.value[idx]) {
+    clearTimeout(activeFlashes.value[idx])
+  } else {
+    originalSaved[idx] = taglineWords.value[idx]
+  }
+
+  const pool = pools[idx]
+  const currentWord = taglineWords.value[idx]
+  const otherWords = pool.filter(w => w !== currentWord)
+  const substitute = otherWords[Math.floor(Math.random() * otherWords.length)]
+
+  taglineWords.value[idx] = substitute
+  taglineWordStates.value[idx].flashing = true
+
+  activeFlashes.value[idx] = setTimeout(() => {
+    if (originalSaved[idx] !== undefined) {
+      taglineWords.value[idx] = originalSaved[idx]
+      delete originalSaved[idx]
+    }
+    taglineWordStates.value[idx].flashing = false
+    delete activeFlashes.value[idx]
+  }, 450)
+
+  startResetTimer()
+}
+
+function clickWord(idx) {
+  // Cancel active flash/hover timer so it doesn't restore to the old word
+  if (activeFlashes.value[idx]) {
+    clearTimeout(activeFlashes.value[idx])
+    delete activeFlashes.value[idx]
+    delete originalSaved[idx]
+    taglineWordStates.value[idx].flashing = false
+  }
+
+  const pool = pools[idx]
+  const currentWord = taglineWords.value[idx]
+  const otherWords = pool.filter(w => w !== currentWord)
+  const substitute = otherWords[Math.floor(Math.random() * otherWords.length)]
+
+  taglineWords.value[idx] = substitute
+  
+  // Trigger click animation
+  taglineWordStates.value[idx].clicked = true
+  setTimeout(() => {
+    taglineWordStates.value[idx].clicked = false
+  }, 500)
+
+  startResetTimer()
+}
+
+function toggleDottedLineDirection() {
+  isDottedLineReversed.value = !isDottedLineReversed.value
+  isDottedLineClicked.value = true
+  setTimeout(() => {
+    isDottedLineClicked.value = false
+  }, 400)
+}
+
+onBeforeUnmount(() => {
+  if (resetTimer) clearTimeout(resetTimer)
+  Object.keys(activeFlashes.value).forEach(idx => {
+    clearTimeout(activeFlashes.value[idx])
+  })
+})
+
 const showHistory = ref(false)
 const newTaskName = ref('')
 
@@ -289,6 +411,35 @@ function dismissLastDone() {
   saveLastDone()
 }
 
+function undoLastDone() {
+  if (!lastDoneTask.value) return
+  if (tasks.value.length >= 5) {
+    shouldLastDoneShake.value = true
+    setTimeout(() => {
+      shouldLastDoneShake.value = false
+    }, 500)
+    return
+  }
+
+  const restoredTask = {
+    id: lastDoneTask.value.id,
+    name: lastDoneTask.value.name,
+    assignee: null
+  }
+  tasks.value.push(restoredTask)
+  
+  if (tasks.value.length === 1) {
+    activeTaskId.value = restoredTask.id
+    saveActiveTask()
+  }
+
+  history.value = history.value.filter(item => item.id !== lastDoneTask.value.id)
+  saveHistory()
+
+  dismissLastDone()
+  saveTasks()
+}
+
 function clearHistory() {
   if (confirm('Are you sure you want to clear your entire history?')) {
     history.value = []
@@ -368,12 +519,20 @@ async function triggerInstall() {
     <!-- Header -->
     <header class="app-header">
       <div class="header-main">
-        <h1 class="logo-text">WAIED?</h1>
+        <h1 class="logo-text" aria-label="WAIED?">
+          <span 
+            v-for="(char, idx) in logoLetters" 
+            :key="idx + '-' + char" 
+            class="logo-letter logo-letter-anim"
+          >
+            {{ char }}
+          </span><span class="logo-question">?</span>
+        </h1>
         <div class="header-actions">
           <!-- Theme Switcher (Icons Only) -->
           <button 
             class="neo-btn toggle-theme-btn" 
-            @click="toggleTheme"
+            @click.stop="toggleTheme"
             :title="`Theme: ${theme.toUpperCase()} (Click to toggle)`"
             aria-label="Toggle dark mode theme"
           >
@@ -398,7 +557,7 @@ async function triggerInstall() {
           <button 
             class="neo-btn toggle-history-btn" 
             :class="{ 'neo-btn-yellow': showHistory }"
-            @click="showHistory = !showHistory" 
+            @click.stop="showHistory = !showHistory" 
             aria-label="View history"
             title="View History"
           >
@@ -409,7 +568,36 @@ async function triggerInstall() {
           </button>
         </div>
       </div>
-      <p class="tagline">What am I even doing?</p>
+      <p 
+        class="tagline" 
+        @click.stop
+        title="Hover a word to flash it, or click to change it!"
+      >
+        <span 
+          v-for="(word, idx) in taglineWords" 
+          :key="idx" 
+          class="tagline-word"
+          :class="{
+            'is-flashing': taglineWordStates[idx].flashing,
+            'is-clicked': taglineWordStates[idx].clicked
+          }"
+          @mouseenter="flashWord(idx)"
+          @click.stop="clickWord(idx)"
+        >
+          {{ word }}
+        </span>
+      </p>
+      
+      <!-- Dotted Line Divider -->
+      <div 
+        class="dotted-line"
+        :class="{ 
+          'reverse-scroll': isDottedLineReversed,
+          'is-clicked': isDottedLineClicked
+        }"
+        @click.stop="toggleDottedLineDirection"
+        title="Click to reverse scroll direction!"
+      ></div>
     </header>
 
     <!-- PWA Install Banner -->
@@ -431,12 +619,14 @@ async function triggerInstall() {
           }"
           :placeholder="tasks.length >= 5 ? 'ATTENTION FULL: 5/5' : 'Add a priority...'"
           :disabled="tasks.length >= 5"
+          :title="tasks.length >= 5 ? 'Complete or delete before adding more' : 'Type to add a task'"
           maxlength="80"
         />
         <button 
           type="submit" 
           class="neo-btn neo-btn-pink add-btn"
           :disabled="tasks.length >= 5"
+          :title="tasks.length >= 5 ? 'Complete or delete before adding more' : 'Add task'"
         >
           +
         </button>
@@ -604,14 +794,26 @@ async function triggerInstall() {
 
     <!-- Most Recently Done Banner -->
     <footer class="app-footer">
-      <div v-if="lastDoneTask" class="last-done-banner neo-card pop-entry">
+      <div 
+        v-if="lastDoneTask" 
+        class="last-done-banner neo-card pop-entry"
+        :class="{ 'shake-banner': shouldLastDoneShake }"
+      >
         <div class="last-done-info">
           <span class="done-badge">DONE</span>
           <span class="last-done-text">{{ lastDoneTask.name }}</span>
         </div>
-        <button class="dismiss-done-btn" @click="dismissLastDone" title="Dismiss">
-          ✕
-        </button>
+        <div class="last-done-actions">
+          <button class="undo-done-btn" @click="undoLastDone" title="Undo completed task">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7v6h6" />
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+            </svg>
+          </button>
+          <button class="dismiss-done-btn" @click="dismissLastDone" title="Dismiss">
+            ✕
+          </button>
+        </div>
       </div>
       <!-- Tip is permanently removed after first use of rename/double-click edit -->
       <p v-else-if="!hasUsedDoubleClick" class="footer-tip">💡 Double-click a task to rename</p>
@@ -681,8 +883,60 @@ async function triggerInstall() {
 
 /* Header styling */
 .app-header {
-  border-bottom: 2px dashed var(--border-color);
-  padding-bottom: 12px;
+  padding-bottom: 0px;
+  cursor: default;
+}
+
+.dotted-line {
+  position: relative; /* Create relative context for hitbox */
+  height: 2px;
+  background-image: linear-gradient(to right, var(--border-color) 60%, transparent 40%);
+  background-position: bottom;
+  background-size: 12px 2px;
+  background-repeat: repeat-x;
+  cursor: pointer;
+  margin-top: 14px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Invisible hitbox extending slightly above and below the line */
+.dotted-line::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.dotted-line:hover {
+  animation: scroll-border-right 0.6s linear infinite;
+}
+
+.dotted-line.reverse-scroll:hover {
+  animation: scroll-border-left 0.6s linear infinite;
+}
+
+.dotted-line.is-clicked {
+  animation: line-click-pulse 0.4s ease-out;
+}
+
+@keyframes line-click-pulse {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(3); opacity: 0.8; }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes scroll-border-right {
+  from { background-position: 0 100%; }
+  to { background-position: 12px 100%; }
+}
+
+@keyframes scroll-border-left {
+  from { background-position: 0 100%; }
+  to { background-position: -12px 100%; }
 }
 
 .header-main {
@@ -699,6 +953,41 @@ async function triggerInstall() {
   color: var(--text-main);
   margin: 0;
   line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.logo-letter {
+  display: inline-block;
+  backface-visibility: hidden;
+}
+
+.logo-letter-anim {
+  animation: logo-flip-in 0.35s cubic-bezier(0.34, 1.8, 0.64, 1) forwards;
+  transform-origin: bottom center;
+}
+
+@keyframes logo-flip-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) rotateX(-90deg) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg) scale(1);
+  }
+}
+
+.logo-question {
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.5s cubic-bezier(0.34, 2, 0.64, 1);
+}
+
+.logo-text:hover .logo-question,
+.logo-question:hover {
+  transform: scaleX(-1) rotate(-15deg) scale(1.2);
 }
 
 .tagline {
@@ -707,6 +996,42 @@ async function triggerInstall() {
   text-transform: uppercase;
   color: var(--text-muted);
   margin-top: 4px;
+  cursor: default;
+  user-select: none;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.tagline-word {
+  display: inline-block;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.tagline-word:hover {
+  color: var(--accent-pink);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.tagline-word.is-flashing {
+  animation: word-flash-anim 0.45s ease-in-out;
+  color: var(--accent-pink);
+}
+
+@keyframes word-flash-anim {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15) rotate(3deg); }
+  100% { transform: scale(1); }
+}
+
+.tagline-word.is-clicked {
+  animation: word-click-anim 0.5s cubic-bezier(0.34, 1.75, 0.64, 1);
+}
+
+@keyframes word-click-anim {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.3) rotate(-10deg); color: var(--accent-active); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 
 .header-actions {
@@ -815,6 +1140,21 @@ async function triggerInstall() {
   }
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.neo-input:disabled {
+  cursor: not-allowed;
+}
+
+.neo-input:disabled:hover,
+.add-btn:disabled:hover {
+  animation: shake 0.3s ease-in-out;
+}
+
 .add-btn:disabled {
   background: repeating-linear-gradient(
     -45deg,
@@ -851,8 +1191,8 @@ async function triggerInstall() {
 }
 
 .focus-title {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 900;
   word-wrap: break-word;
 }
 
@@ -1060,6 +1400,12 @@ async function triggerInstall() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.last-done-banner:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px var(--shadow-color);
 }
 
 .last-done-info {
@@ -1087,12 +1433,56 @@ async function triggerInstall() {
   text-overflow: ellipsis;
 }
 
+.shake-banner {
+  animation: shake 0.3s ease-in-out !important;
+}
+
+.last-done-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.undo-done-btn,
 .dismiss-done-btn {
   background: none;
   border: none;
   font-weight: bold;
   font-size: 14px;
   cursor: pointer;
+  opacity: 0;
+  transform: scale(0) rotate(-45deg);
+  transition: opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: inherit;
+}
+
+.undo-done-btn svg {
+  display: block;
+}
+
+.last-done-banner:hover .undo-done-btn,
+.last-done-banner:hover .dismiss-done-btn {
+  opacity: 0.8;
+  transform: scale(1) rotate(0deg);
+}
+
+.undo-done-btn:hover {
+  color: #ffcc00 !important;
+  opacity: 1 !important;
+  transform: scale(1.25) rotate(-45deg) !important;
+}
+
+.dismiss-done-btn:hover {
+  color: #ffcc00 !important;
+  opacity: 1 !important;
+  transform: scale(1.25) rotate(90deg) !important;
 }
 
 /* History Drawer and Overlay */
@@ -1167,7 +1557,7 @@ async function triggerInstall() {
 
 .history-item:hover {
   transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0px 0px var(--shadow-color);
+  box-shadow: 3px 3px 0px 0px var(--accent-green);
   border-color: var(--accent-green);
 }
 
