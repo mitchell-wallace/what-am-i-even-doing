@@ -14,6 +14,7 @@
   --accent-green: #0fa362;  /* Checkbox Completed Green (darkened, like magenta) */
   --accent-blue: #3d7cff;   /* Accent Button Blue */
   --accent-orange: #ff7849; /* High-attention Orange */
+  --accent-purple: #9d4edd; /* Blocked/Waiting Purple */
   
   --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --border-width: 3px;
@@ -49,6 +50,7 @@
   --accent-pink: #c2185b;   /* Deeper Magenta */
   --accent-green: #126d39;  /* Darker neobrutalist green for done state (touch darker) */
   --accent-orange: #bd3e13; /* Darker Orange */
+  --accent-purple: #6a0dad; /* Darker Purple */
 }
 
 /* System dark theme fallback if no manual class overrides are active */
@@ -67,6 +69,7 @@
     --accent-pink: #c2185b;   /* Deeper Magenta */
     --accent-green: #126d39;  /* Darker neobrutalist green for done state (touch darker) */
     --accent-orange: #bd3e13; /* Darker Orange */
+    --accent-purple: #6a0dad; /* Darker Purple */
   }
 }
 

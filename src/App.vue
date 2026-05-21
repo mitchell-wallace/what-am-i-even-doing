@@ -20,13 +20,6 @@ const pools = [
 ]
 const taglineWords = ref([...originalWords])
 
-const editingTaglineIdx = ref(null)
-const editingTaglineValue = ref('')
-const taglineInputRef = ref(null)
-
-const clickTimeout = ref(null)
-const clickTimeoutIdx = ref(null)
-
 const logoLetters = computed(() => {
   return taglineWords.value.map(word => {
     if (!word) return ''
@@ -54,10 +47,6 @@ function resetTaglineWords() {
     taglineWordStates.value[idx].flashing = false
   })
   activeFlashes.value = {}
-  
-  // Clear editing state
-  editingTaglineIdx.value = null
-  editingTaglineValue.value = ''
   
   // Set back to original words
   taglineWords.value = [...originalWords]
@@ -99,26 +88,6 @@ function flashWord(idx) {
   startResetTimer()
 }
 
-function clickWord(idx) {
-  if (clickTimeout.value !== null && clickTimeoutIdx.value === idx) {
-    clearTimeout(clickTimeout.value)
-    clickTimeout.value = null
-    clickTimeoutIdx.value = null
-    return
-  }
-  
-  if (clickTimeout.value !== null) {
-    clearTimeout(clickTimeout.value)
-  }
-  
-  clickTimeoutIdx.value = idx
-  clickTimeout.value = setTimeout(() => {
-    clickTimeout.value = null
-    clickTimeoutIdx.value = null
-    cycleWord(idx)
-  }, 220)
-}
-
 function cycleWord(idx) {
   // Cancel active flash/hover timer so it doesn't restore to the old word
   if (activeFlashes.value[idx]) {
@@ -144,49 +113,6 @@ function cycleWord(idx) {
   startResetTimer()
 }
 
-function startEditingTagline(idx) {
-  if (resetTimer) {
-    clearTimeout(resetTimer)
-    resetTimer = null
-  }
-  
-  if (activeFlashes.value[idx]) {
-    clearTimeout(activeFlashes.value[idx])
-    delete activeFlashes.value[idx]
-    delete originalSaved[idx]
-    taglineWordStates.value[idx].flashing = false
-  }
-  
-  editingTaglineIdx.value = idx
-  editingTaglineValue.value = taglineWords.value[idx]
-  
-  nextTick(() => {
-    if (taglineInputRef.value && taglineInputRef.value[0]) {
-      taglineInputRef.value[0].focus()
-      taglineInputRef.value[0].select()
-    }
-  })
-}
-
-function saveTaglineWord(idx) {
-  if (editingTaglineIdx.value !== idx) return
-  
-  const val = editingTaglineValue.value.trim()
-  if (val) {
-    taglineWords.value[idx] = val
-  }
-  
-  editingTaglineIdx.value = null
-  editingTaglineValue.value = ''
-  startResetTimer()
-}
-
-function cancelEditingTagline() {
-  editingTaglineIdx.value = null
-  editingTaglineValue.value = ''
-  startResetTimer()
-}
-
 function toggleDottedLineDirection() {
   isDottedLineReversed.value = !isDottedLineReversed.value
   isDottedLineClicked.value = true
@@ -197,7 +123,6 @@ function toggleDottedLineDirection() {
 
 onBeforeUnmount(() => {
   if (resetTimer) clearTimeout(resetTimer)
-  if (clickTimeout.value) clearTimeout(clickTimeout.value)
   Object.keys(activeFlashes.value).forEach(idx => {
     clearTimeout(activeFlashes.value[idx])
   })
@@ -210,6 +135,7 @@ const newTaskName = ref('')
 const editingTaskId = ref(null)
 const editingName = ref('')
 const editInputRef = ref(null)
+const focusEditInputRef = ref(null)
 const hasUsedDoubleClick = ref(false)
 
 // Theme selection: 'auto' | 'light' | 'dark'
@@ -418,7 +344,8 @@ function toggleAssignee(type) {
   saveTasks()
 }
 
-function startEdit(task) {
+function startEdit(task, isFocusBanner = false) {
+  if (!task) return
   editingTaskId.value = task.id
   editingName.value = task.name
   
@@ -429,14 +356,20 @@ function startEdit(task) {
   }
   
   nextTick(() => {
-    if (editInputRef.value && editInputRef.value[0]) {
-      editInputRef.value[0].focus()
+    if (isFocusBanner) {
+      if (focusEditInputRef.value) {
+        focusEditInputRef.value.focus()
+      }
+    } else {
+      if (editInputRef.value && editInputRef.value[0]) {
+        editInputRef.value[0].focus()
+      }
     }
   })
 }
 
 function saveEdit(task) {
-  if (editingTaskId.value !== task.id) return
+  if (!task || editingTaskId.value !== task.id) return
   
   const trimmed = editingName.value.trim()
   if (trimmed) {
@@ -646,35 +579,21 @@ async function triggerInstall() {
       <p 
         class="tagline" 
         @click.stop
-        title="Hover a word to flash it, click to cycle it, or double-click to edit!"
+        title="Hover a word to flash it, click to cycle it!"
       >
-        <template v-for="(word, idx) in taglineWords" :key="idx">
-          <span 
-            v-if="editingTaglineIdx !== idx"
-            class="tagline-word"
-            :class="{
-              'is-flashing': taglineWordStates[idx].flashing,
-              'is-clicked': taglineWordStates[idx].clicked
-            }"
-            @mouseenter="flashWord(idx)"
-            @click.stop="clickWord(idx)"
-            @dblclick.stop="startEditingTagline(idx)"
-          >
-            {{ word }}
-          </span>
-          <input
-            v-else
-            ref="taglineInputRef"
-            v-model="editingTaglineValue"
-            type="text"
-            class="edit-tagline-input"
-            @blur="saveTaglineWord(idx)"
-            @keyup.enter="saveTaglineWord(idx)"
-            @keyup.escape="cancelEditingTagline"
-            @click.stop
-            maxlength="20"
-          />
-        </template>
+        <span 
+          v-for="(word, idx) in taglineWords" 
+          :key="idx"
+          class="tagline-word"
+          :class="{
+            'is-flashing': taglineWordStates[idx].flashing,
+            'is-clicked': taglineWordStates[idx].clicked
+          }"
+          @mouseenter="flashWord(idx)"
+          @click.stop="cycleWord(idx)"
+        >
+          {{ word }}
+        </span>
       </p>
       
       <!-- Dotted Line Divider -->
@@ -761,10 +680,45 @@ async function triggerInstall() {
               <rect x="18" y="10" width="2" height="4" />
             </svg>
           </button>
+          <button 
+            class="assignee-toggle-btn"
+            :class="{ 'active-waiting': tasks.find(t => t.id === activeTaskId)?.assignee === 'waiting' }"
+            @click.stop="toggleAssignee('waiting')"
+            title="Mark as Blocked/Waiting task"
+            aria-label="Mark as Blocked/Waiting task"
+          >
+            <!-- Hourglass SVG -->
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="miter">
+              <line x1="6" y1="4" x2="18" y2="4" />
+              <line x1="6" y1="20" x2="18" y2="20" />
+              <path d="M6 4l6 8-6 8M18 4l-6 8 6 8" />
+              <polygon points="12,12 8,6 16,6" fill="currentColor" fill-opacity="0.15" />
+              <polygon points="12,12 7,18 17,18" fill="currentColor" fill-opacity="0.3" />
+            </svg>
+          </button>
         </div>
       </div>
       <div class="focus-title">
-        {{ tasks.find(t => t.id === activeTaskId)?.name || 'Select a task below' }}
+        <template v-if="editingTaskId === activeTaskId">
+          <input 
+            v-model="editingName" 
+            ref="focusEditInputRef"
+            type="text" 
+            class="neo-input focus-edit-input"
+            @blur="saveEdit(tasks.find(t => t.id === activeTaskId))"
+            @keyup.enter="saveEdit(tasks.find(t => t.id === activeTaskId))"
+            @keyup.escape="editingTaskId = null"
+            @click.stop
+          />
+        </template>
+        <span 
+          v-else
+          class="focus-text"
+          @dblclick.stop="startEdit(tasks.find(t => t.id === activeTaskId), true)"
+          title="Double-click to edit focus task"
+        >
+          {{ tasks.find(t => t.id === activeTaskId)?.name || 'Select a task below' }}
+        </span>
       </div>
     </div>
 
@@ -865,6 +819,14 @@ async function triggerInstall() {
                 <circle cx="12" cy="2" r="1" fill="currentColor" />
                 <rect x="4" y="10" width="2" height="4" />
                 <rect x="18" y="10" width="2" height="4" />
+              </svg>
+              <!-- Hourglass/Waiting Badge Icon -->
+              <svg v-else-if="task.assignee === 'waiting'" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
+                <line x1="6" y1="4" x2="18" y2="4" />
+                <line x1="6" y1="20" x2="18" y2="20" />
+                <path d="M6 4l6 8-6 8M18 4l-6 8 6 8" />
+                <polygon points="12,12 8,6 16,6" fill="currentColor" fill-opacity="0.15" />
+                <polygon points="12,12 7,18 17,18" fill="currentColor" fill-opacity="0.3" />
               </svg>
             </div>
           </Transition>
@@ -1091,21 +1053,6 @@ async function triggerInstall() {
   gap: 4px;
 }
 
-.edit-tagline-input {
-  font-family: var(--font-main);
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-main);
-  background-color: var(--bg-card);
-  border: 1.5px solid var(--border-color);
-  padding: 1px 4px;
-  width: 75px;
-  outline: none;
-  box-shadow: 1px 1px 0px 0px var(--shadow-color);
-  margin-top: -2px;
-}
-
 .tagline-word {
   display: inline-block;
   cursor: pointer;
@@ -1298,6 +1245,21 @@ async function triggerInstall() {
   font-size: 26px;
   font-weight: 900;
   word-wrap: break-word;
+  display: flex;
+  align-items: center;
+}
+
+.focus-edit-input {
+  width: 100%;
+  font-size: 20px;
+  font-weight: 900;
+  font-family: var(--font-main);
+  color: var(--text-main);
+  background-color: var(--bg-card);
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: none;
+  padding: 4px 8px;
+  outline: none;
 }
 
 /* Task List */
@@ -1808,6 +1770,13 @@ async function triggerInstall() {
   transform: translate(1px, 1px);
 }
 
+.assignee-toggle-btn.active-waiting {
+  background-color: var(--accent-purple);
+  color: #ffffff;
+  box-shadow: none;
+  transform: translate(1px, 1px);
+}
+
 /* Task assignee badges */
 .task-assignee-badge {
   display: inline-flex;
@@ -1837,6 +1806,11 @@ async function triggerInstall() {
 
 .task-assignee-badge.badge-robot {
   background-color: var(--accent-blue);
+  color: #ffffff;
+}
+
+.task-assignee-badge.badge-waiting {
+  background-color: var(--accent-purple);
   color: #ffffff;
 }
 
