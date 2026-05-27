@@ -61,6 +61,8 @@ function startResetTimer() {
 }
 
 function flashWord(idx) {
+  if (animations.value !== 'all') return
+
   // If already flashing, clear timer first
   if (activeFlashes.value[idx]) {
     clearTimeout(activeFlashes.value[idx])
@@ -105,10 +107,12 @@ function cycleWord(idx) {
   taglineWords.value[idx] = substitute
   
   // Trigger click animation
-  taglineWordStates.value[idx].clicked = true
-  setTimeout(() => {
-    taglineWordStates.value[idx].clicked = false
-  }, 500)
+  if (animations.value !== 'none') {
+    taglineWordStates.value[idx].clicked = true
+    setTimeout(() => {
+      taglineWordStates.value[idx].clicked = false
+    }, 500)
+  }
 
   startResetTimer()
 }
@@ -129,6 +133,7 @@ onBeforeUnmount(() => {
 })
 
 const showHistory = ref(false)
+const showSettings = ref(false)
 const newTaskName = ref('')
 
 // Editing state
@@ -138,8 +143,19 @@ const editInputRef = ref(null)
 const focusEditInputRef = ref(null)
 const hasUsedDoubleClick = ref(false)
 
-// Theme selection: 'auto' | 'light' | 'dark'
+// Settings state
 const theme = ref('auto')
+const maxAttention = ref(5)
+const animations = ref('all') // 'all' | 'less' | 'none'
+const instanceId = ref(1)
+
+// Init instanceId from sessionStorage on startup
+if (typeof window !== 'undefined') {
+  const savedInstance = sessionStorage.getItem('waied_instance_id')
+  if (savedInstance) {
+    instanceId.value = parseInt(savedInstance, 10) || 1
+  }
+}
 
 // Drag and drop state
 const draggedIndex = ref(null)
@@ -153,8 +169,8 @@ const showInstallBtn = ref(false)
 const isAttentionCappedJustTriggered = ref(false)
 let capTimer = null
 
-watch(() => tasks.value.length, (newLength) => {
-  if (newLength >= 5) {
+watch([() => tasks.value.length, maxAttention], ([newLength, maxVal]) => {
+  if (newLength >= maxVal) {
     isAttentionCappedJustTriggered.value = true
     if (capTimer) clearTimeout(capTimer)
     capTimer = setTimeout(() => {
@@ -176,49 +192,83 @@ const STORAGE_KEYS = {
   LAST_DONE: 'waied_last_done_v1',
   HISTORY: 'waied_history_v1',
   THEME: 'waied_theme_v1',
-  HAS_EDITED: 'waied_has_edited_v1'
+  HAS_EDITED: 'waied_has_edited_v1',
+  ANIMATIONS: 'waied_animations_v1',
+  MAX_ATTENTION: 'waied_max_attention_v1'
+}
+
+// Dynamic Key Scoper for separate virtual desktop instances
+function getKey(baseKey) {
+  if (instanceId.value === 1) return baseKey
+  return `${baseKey}_inst${instanceId.value}`
 }
 
 function loadState() {
   try {
-    const savedTasks = localStorage.getItem(STORAGE_KEYS.TASKS)
-    if (savedTasks) {
-      tasks.value = JSON.parse(savedTasks)
-    } else {
-      // Seed starter tasks
-      tasks.value = [
-        { id: '1', name: '👋 Welcome! Click me to set as active focus.' },
-        { id: '2', name: '🤖 Toggle 🤖/👤 in focus box to mark AI/Human work.', assignee: 'robot' },
-        { id: '3', name: '✏️ Double-click this task to edit its name.' },
-        { id: '4', name: '↕️ Drag me up or down to reorder the list.' }
-      ]
-    }
-
-    const savedActive = localStorage.getItem(STORAGE_KEYS.ACTIVE)
-    if (savedActive) {
-      activeTaskId.value = savedActive
-    } else if (tasks.value.length > 0) {
-      activeTaskId.value = tasks.value[0].id
-    }
-
-    const savedLastDone = localStorage.getItem(STORAGE_KEYS.LAST_DONE)
-    if (savedLastDone) {
-      lastDoneTask.value = JSON.parse(savedLastDone)
-    }
-
-    const savedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY)
-    if (savedHistory) {
-      history.value = JSON.parse(savedHistory)
-    }
-
+    // 1. Global Settings
     const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME)
     if (savedTheme) {
       theme.value = savedTheme
     }
 
+    const savedMaxAttention = localStorage.getItem(STORAGE_KEYS.MAX_ATTENTION)
+    if (savedMaxAttention) {
+      maxAttention.value = parseInt(savedMaxAttention, 10) || 5
+    } else {
+      maxAttention.value = 5
+    }
+
+    const savedAnimations = localStorage.getItem(STORAGE_KEYS.ANIMATIONS)
+    if (savedAnimations) {
+      animations.value = savedAnimations
+    } else {
+      animations.value = 'all'
+    }
+
     const savedHasEdited = localStorage.getItem(STORAGE_KEYS.HAS_EDITED)
     if (savedHasEdited) {
       hasUsedDoubleClick.value = JSON.parse(savedHasEdited)
+    }
+
+    // 2. Instance-Specific task data
+    const savedTasks = localStorage.getItem(getKey(STORAGE_KEYS.TASKS))
+    if (savedTasks) {
+      tasks.value = JSON.parse(savedTasks)
+    } else {
+      // Seed starter tasks only on Instance 1
+      if (instanceId.value === 1) {
+        tasks.value = [
+          { id: '1', name: '👋 Welcome! Click me to set as active focus.' },
+          { id: '2', name: '🤖 Toggle 🤖/👤 in focus box to mark AI/Human work.', assignee: 'robot' },
+          { id: '3', name: '✏️ Double-click this task to edit its name.' },
+          { id: '4', name: '↕️ Drag me up or down to reorder the list.' }
+        ]
+      } else {
+        tasks.value = []
+      }
+    }
+
+    const savedActive = localStorage.getItem(getKey(STORAGE_KEYS.ACTIVE))
+    if (savedActive) {
+      activeTaskId.value = savedActive
+    } else if (tasks.value.length > 0) {
+      activeTaskId.value = tasks.value[0].id
+    } else {
+      activeTaskId.value = null
+    }
+
+    const savedLastDone = localStorage.getItem(getKey(STORAGE_KEYS.LAST_DONE))
+    if (savedLastDone) {
+      lastDoneTask.value = JSON.parse(savedLastDone)
+    } else {
+      lastDoneTask.value = null
+    }
+
+    const savedHistory = localStorage.getItem(getKey(STORAGE_KEYS.HISTORY))
+    if (savedHistory) {
+      history.value = JSON.parse(savedHistory)
+    } else {
+      history.value = []
     }
   } catch (e) {
     console.error('Failed to load state from localStorage:', e)
@@ -226,61 +276,68 @@ function loadState() {
 }
 
 function saveTasks() {
-  localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks.value))
+  localStorage.setItem(getKey(STORAGE_KEYS.TASKS), JSON.stringify(tasks.value))
 }
 
 function saveActiveTask() {
+  const key = getKey(STORAGE_KEYS.ACTIVE)
   if (activeTaskId.value) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE, activeTaskId.value)
+    localStorage.setItem(key, activeTaskId.value)
   } else {
-    localStorage.removeItem(STORAGE_KEYS.ACTIVE)
+    localStorage.removeItem(key)
   }
 }
 
 function saveLastDone() {
+  const key = getKey(STORAGE_KEYS.LAST_DONE)
   if (lastDoneTask.value) {
-    localStorage.setItem(STORAGE_KEYS.LAST_DONE, JSON.stringify(lastDoneTask.value))
+    localStorage.setItem(key, JSON.stringify(lastDoneTask.value))
   } else {
-    localStorage.removeItem(STORAGE_KEYS.LAST_DONE)
+    localStorage.removeItem(key)
   }
 }
 
 function saveHistory() {
-  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history.value))
+  localStorage.setItem(getKey(STORAGE_KEYS.HISTORY), JSON.stringify(history.value))
 }
 
 // --- Theme Logic ---
 function applyTheme() {
   const root = document.documentElement
-  const body = document.body
-  
-  // Reset existing custom theme classes
   root.classList.remove('light-theme', 'dark-theme')
   
   if (theme.value === 'light') {
     root.classList.add('light-theme')
   } else if (theme.value === 'dark') {
     root.classList.add('dark-theme')
-  } else {
-    // Auto: Let media query in style.css handle it natively, 
-    // but we can query it dynamically for secondary classes if needed
   }
 }
 
-function toggleTheme() {
-  if (theme.value === 'auto') {
-    theme.value = 'light'
-  } else if (theme.value === 'light') {
-    theme.value = 'dark'
-  } else {
-    theme.value = 'auto'
-  }
+function selectTheme(val) {
+  theme.value = val
   localStorage.setItem(STORAGE_KEYS.THEME, theme.value)
   applyTheme()
 }
 
+// --- Animations Logic ---
+function applyAnimations() {
+  const root = document.documentElement
+  root.classList.remove('anim-all', 'anim-less', 'anim-none')
+  root.classList.add(`anim-${animations.value}`)
+}
+
+watch(animations, () => {
+  localStorage.setItem(STORAGE_KEYS.ANIMATIONS, animations.value)
+  applyAnimations()
+})
+
+watch(maxAttention, () => {
+  localStorage.setItem(STORAGE_KEYS.MAX_ATTENTION, maxAttention.value.toString())
+})
+
 // --- Audio Synthesis (Offline-Friendly Focus Chime) ---
 function playCompleteSound() {
+  if (animations.value === 'none') return
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext
     if (!AudioContext) return
@@ -312,7 +369,7 @@ function playCompleteSound() {
 function addTask() {
   const name = newTaskName.value.trim()
   if (!name) return
-  if (tasks.value.length >= 5) return
+  if (tasks.value.length >= maxAttention.value) return
   
   const newId = Date.now().toString()
   tasks.value.push({ id: newId, name, assignee: null })
@@ -421,7 +478,7 @@ function dismissLastDone() {
 
 function undoLastDone() {
   if (!lastDoneTask.value) return
-  if (tasks.value.length >= 5) {
+  if (tasks.value.length >= maxAttention.value) {
     shouldLastDoneShake.value = true
     setTimeout(() => {
       shouldLastDoneShake.value = false
@@ -527,7 +584,7 @@ async function triggerInstall() {
     <!-- Header -->
     <header class="app-header">
       <div class="header-main">
-        <h1 class="logo-text" aria-label="WAIED?">
+        <h1 class="logo-text" aria-label="WAIED?" @click.stop="showSettings = !showSettings; showHistory = false" title="Click to open settings">
           <span 
             v-for="(char, idx) in logoLetters" 
             :key="idx + '-' + taglineWords[idx]" 
@@ -537,27 +594,18 @@ async function triggerInstall() {
           </span><span class="logo-question">?</span>
         </h1>
         <div class="header-actions">
-          <!-- Theme Switcher (Icons Only) -->
+          <!-- Settings Trigger -->
           <button 
-            class="neo-btn toggle-theme-btn" 
-            @click.stop="toggleTheme"
-            :title="`Theme: ${theme.toUpperCase()} (Click to toggle)`"
-            aria-label="Toggle dark mode theme"
+            class="neo-btn toggle-settings-btn" 
+            :class="{ 'neo-btn-yellow': showSettings }"
+            @click.stop="showSettings = !showSettings; if (showSettings) showHistory = false"
+            title="Settings"
+            aria-label="Open settings panel"
           >
-            <!-- Sun (Light) -->
-            <svg v-if="theme === 'light'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4"/>
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-            </svg>
-            <!-- Moon (Dark) -->
-            <svg v-else-if="theme === 'dark'" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
-            </svg>
-            <!-- Monitor (Auto) -->
-            <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="20" height="14" x="2" y="3" rx="2"/>
-              <line x1="8" x2="16" y1="21" y2="21"/>
-              <line x1="12" x2="12" y1="17" y2="21"/>
+            <!-- Cog SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
 
@@ -565,7 +613,7 @@ async function triggerInstall() {
           <button 
             class="neo-btn toggle-history-btn" 
             :class="{ 'neo-btn-yellow': showHistory }"
-            @click.stop="showHistory = !showHistory" 
+            @click.stop="showHistory = !showHistory; if (showHistory) showSettings = false" 
             aria-label="View history"
             title="View History"
           >
@@ -579,7 +627,7 @@ async function triggerInstall() {
       <p 
         class="tagline" 
         @click.stop
-        title="Hover a word to flash it, click to cycle it!"
+        :title="animations === 'all' ? 'Hover a word to flash it, click to cycle it!' : 'Click a word to cycle it!'"
       >
         <span 
           v-for="(word, idx) in taglineWords" 
@@ -589,7 +637,7 @@ async function triggerInstall() {
             'is-flashing': taglineWordStates[idx].flashing,
             'is-clicked': taglineWordStates[idx].clicked
           }"
-          @mouseenter="flashWord(idx)"
+          @mouseenter="animations === 'all' && flashWord(idx)"
           @click.stop="cycleWord(idx)"
         >
           {{ word }}
@@ -622,19 +670,19 @@ async function triggerInstall() {
           type="text" 
           class="neo-input" 
           :class="{ 
-            'input-capped-fresh': tasks.length >= 5 && isAttentionCappedJustTriggered, 
-            'input-capped-dimmed': tasks.length >= 5 && !isAttentionCappedJustTriggered 
+            'input-capped-fresh': tasks.length >= maxAttention && isAttentionCappedJustTriggered, 
+            'input-capped-dimmed': tasks.length >= maxAttention && !isAttentionCappedJustTriggered 
           }"
-          :placeholder="tasks.length >= 5 ? 'ATTENTION FULL: 5/5' : 'Add a priority...'"
-          :disabled="tasks.length >= 5"
-          :title="tasks.length >= 5 ? 'Complete or delete before adding more' : 'Type to add a task'"
+          :placeholder="tasks.length >= maxAttention ? `ATTENTION FULL: ${tasks.length}/${maxAttention}` : 'Add a priority...'"
+          :disabled="tasks.length >= maxAttention"
+          :title="tasks.length >= maxAttention ? 'Complete or delete before adding more' : 'Type to add a task'"
           maxlength="80"
         />
         <button 
           type="submit" 
           class="neo-btn neo-btn-pink add-btn"
-          :disabled="tasks.length >= 5"
-          :title="tasks.length >= 5 ? 'Complete or delete before adding more' : 'Add task'"
+          :disabled="tasks.length >= maxAttention"
+          :title="tasks.length >= maxAttention ? 'Complete or delete before adding more' : 'Add task'"
         >
           +
         </button>
@@ -915,16 +963,195 @@ async function triggerInstall() {
         </div>
       </aside>
     </transition>
+
+    <!-- Settings Drawer Overlay -->
+    <div v-if="showSettings" class="history-overlay" @click="showSettings = false"></div>
+
+    <!-- Settings Drawer -->
+    <transition name="drawer">
+      <aside v-if="showSettings" class="settings-drawer neo-card">
+        <div class="drawer-header">
+          <h2>Settings</h2>
+          <button class="neo-btn btn-sm" @click="showSettings = false" title="Close">✕</button>
+        </div>
+
+        <div class="drawer-content">
+          <!-- 1. Theme Setting -->
+          <div class="setting-group">
+            <span class="setting-label">Theme Mode</span>
+            <div class="setting-buttons">
+              <button 
+                class="neo-btn setting-btn" 
+                :class="{ 'active-setting-btn': theme === 'auto' }"
+                @click="selectTheme('auto')"
+              >
+                Auto
+              </button>
+              <button 
+                class="neo-btn setting-btn" 
+                :class="{ 'active-setting-btn': theme === 'light' }"
+                @click="selectTheme('light')"
+              >
+                Light
+              </button>
+              <button 
+                class="neo-btn setting-btn" 
+                :class="{ 'active-setting-btn': theme === 'dark' }"
+                @click="selectTheme('dark')"
+              >
+                Dark
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Attention Limit Setting -->
+          <div class="setting-group">
+            <div class="setting-label-row">
+              <span class="setting-label">Max Attention</span>
+              <span class="setting-value-badge">{{ maxAttention }}</span>
+            </div>
+            <div class="setting-adjuster">
+              <button 
+                class="neo-btn adjuster-btn" 
+                :disabled="maxAttention <= 1"
+                @click="maxAttention > 1 && maxAttention--"
+              >
+                -
+              </button>
+              <div class="adjuster-track">
+                <div class="adjuster-fill" :style="{ width: `${(maxAttention - 1) * 11.11}%` }"></div>
+              </div>
+              <button 
+                class="neo-btn adjuster-btn" 
+                :disabled="maxAttention >= 10"
+                @click="maxAttention < 10 && maxAttention++"
+              >
+                +
+              </button>
+            </div>
+            <p class="setting-help">Limit of concurrent tasks (1-10) to manage focus fatigue.</p>
+          </div>
+
+          <!-- 3. Reduced Animations Setting -->
+          <div class="setting-group">
+            <span class="setting-label">Animations</span>
+            <div class="setting-buttons">
+              <button 
+                class="neo-btn setting-btn" 
+                :class="{ 'active-setting-btn': animations === 'all' }"
+                @click="animations = 'all'"
+              >
+                All
+              </button>
+              <button 
+                class="neo-btn setting-btn" 
+                :class="{ 'active-setting-btn': animations === 'less' }"
+                @click="animations = 'less'"
+              >
+                Less
+              </button>
+              <button 
+                class="neo-btn setting-btn" 
+                :class="{ 'active-setting-btn': animations === 'none' }"
+                @click="animations = 'none'"
+              >
+                None
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. Advanced Collapsible Section -->
+          <details class="advanced-details neo-card">
+            <summary class="advanced-summary">
+              <span>Advanced Options</span>
+              <svg class="summary-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </summary>
+            
+            <div class="advanced-content">
+              <!-- Instance Select -->
+              <div class="setting-group border-top-dashed">
+                <span class="setting-label">Workspace Instance</span>
+                <div class="instance-buttons">
+                  <button 
+                    v-for="id in 5" 
+                    :key="id"
+                    class="neo-btn instance-btn" 
+                    :class="{ 'active-instance-btn': instanceId === id }"
+                    @click="selectInstance(id)"
+                  >
+                    {{ id }}
+                  </button>
+                </div>
+                <p class="setting-help">
+                  <strong>Virtual Desktop helper:</strong> Maps separate windows/tabs to different sets of data. Default is 1.
+                </p>
+              </div>
+
+              <!-- JSON Import/Export -->
+              <div class="setting-group border-top-dashed">
+                <span class="setting-label">Backup & Portability</span>
+                <div class="backup-buttons">
+                  <button class="neo-btn neo-btn-blue w-full" @click="exportJSON">
+                    Export Backup JSON
+                  </button>
+                  <button class="neo-btn neo-btn-pink w-full" @click="triggerImport">
+                    Import Backup JSON
+                  </button>
+                  <input 
+                    type="file" 
+                    ref="fileInputRef" 
+                    accept=".json" 
+                    style="display: none" 
+                    @change="handleImportJSON"
+                  />
+                </div>
+                <p class="setting-help">
+                  <strong>Warning:</strong> Import replaces all local database task sets and settings. It does not merge.
+                </p>
+              </div>
+            </div>
+          </details>
+        </div>
+      </aside>
+    </transition>
+
+    <!-- Native dialog overwrite confirmation modal -->
+    <dialog 
+      ref="confirmModal" 
+      class="confirm-modal-dialog neo-card"
+      closedby="any"
+      aria-labelledby="confirmTitle"
+    >
+      <div class="dialog-content">
+        <h2 id="confirmTitle" class="dialog-title">⚠️ Overwrite Data?</h2>
+        <p class="dialog-desc">
+          You are about to import a backup file. This will <strong>COMPLETELY REPLACE</strong> all task lists, history, and settings across all 5 instances.
+        </p>
+        <p class="dialog-desc caution-text">
+          This operation cannot be undone. Are you sure you want to proceed?
+        </p>
+        <div class="dialog-actions">
+          <button class="neo-btn neo-btn-orange" @click="confirmImport">
+            Confirm Overwrite
+          </button>
+          <button class="neo-btn" @click="cancelImport">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </dialog>
   </div>
 </template>
 
 <style scoped>
 .app-container {
-  width: 100%;
-  max-width: 420px;
+  width: 380px;
+  max-width: 100%;
   background-color: var(--bg-card);
-  padding: 24px;
-  margin: 10vh auto;
+  padding: 20px;
+  margin: 6vh auto;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1899,16 +2126,366 @@ async function triggerInstall() {
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.toggle-theme-btn svg,
+.toggle-settings-btn svg,
 .toggle-history-btn svg {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.toggle-theme-btn:hover svg,
+.toggle-settings-btn:hover svg,
 .toggle-history-btn:hover svg {
   transform: scale(1.15) rotate(8deg);
 }
-.toggle-theme-btn:active svg,
+.toggle-settings-btn:active svg,
 .toggle-history-btn:active svg {
   transform: scale(0.9) rotate(-8deg);
+}
+
+/* Settings Drawer specific styles */
+.settings-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  background-color: var(--bg-primary);
+  border-left: var(--border-width) solid var(--border-color);
+  box-shadow: none;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.setting-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.setting-label {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-main);
+  letter-spacing: 0.5px;
+}
+
+.setting-value-badge {
+  background-color: var(--border-color);
+  color: var(--bg-card);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 2px 6px;
+  box-shadow: 1px 1px 0px 0px var(--shadow-color);
+}
+
+.setting-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.setting-btn {
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.active-setting-btn {
+  background-color: var(--accent-active);
+  color: var(--text-on-accent);
+  box-shadow: var(--shadow-active);
+  transform: translate(1px, 1px);
+}
+
+.setting-adjuster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adjuster-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.adjuster-track {
+  flex-grow: 1;
+  height: 10px;
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.adjuster-fill {
+  height: 100%;
+  background-color: var(--accent-pink);
+  transition: width 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.setting-help {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+/* Advanced Collapsible Details styling */
+.advanced-details {
+  border-width: 2.5px;
+  box-shadow: 2px 2px 0px 0px var(--shadow-color);
+  background-color: var(--bg-card);
+  margin-top: 10px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.advanced-details[open] {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px var(--shadow-color);
+}
+
+.advanced-summary {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-card);
+}
+
+.advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary-arrow {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.advanced-details[open] .summary-arrow {
+  transform: rotate(180deg);
+}
+
+.advanced-content {
+  padding: 14px;
+  background-color: var(--bg-primary);
+  border-top: 2.5px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.border-top-dashed {
+  border-top: 1.5px dashed var(--border-color);
+  padding-top: 14px;
+}
+
+.instance-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.instance-btn {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.active-instance-btn {
+  background-color: var(--accent-orange);
+  color: var(--text-on-accent);
+  box-shadow: var(--shadow-active);
+  transform: translate(1px, 1px);
+}
+
+.backup-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Native dialog overwrite confirmation modal styling */
+.confirm-modal-dialog {
+  border: var(--border-width) solid var(--border-color);
+  box-shadow: var(--shadow-main);
+  background-color: var(--bg-card);
+  padding: 24px;
+  width: 90%;
+  max-width: 360px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  z-index: 110;
+}
+
+.confirm-modal-dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialog-title {
+  font-size: 20px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--text-main);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+  margin: 0;
+}
+
+.dialog-desc {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.caution-text {
+  color: var(--accent-pink);
+  background-color: rgba(255, 96, 151, 0.1);
+  border: 1.5px dashed var(--border-color);
+  padding: 8px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.dialog-actions button {
+  flex: 1;
+}
+
+/* Animations Reduction Level CSS utility overrides */
+
+/* None Level - strip transitions/animations */
+.anim-none *,
+.anim-none *::before,
+.anim-none *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Less Level - remove heavy motion and infinite scroll, keep basic fades/colors */
+.anim-less .logo-letter-anim {
+  animation: none !important;
+}
+.anim-less .dotted-line:hover {
+  animation: none !important;
+}
+.anim-less .tagline-word {
+  transition: color 0.1s ease !important;
+  transform: none !important;
+}
+.anim-less .tagline-word:hover {
+  transform: none !important;
+}
+.anim-less .tagline-word.is-flashing {
+  animation: none !important;
+}
+.anim-less .tagline-word.is-clicked {
+  animation: none !important;
+}
+.anim-less .pop-focus {
+  animation: none !important;
+}
+.anim-less .pop-entry {
+  animation: none !important;
+}
+.anim-less .list-enter-active,
+.anim-less .list-leave-active,
+.anim-less .list-move {
+  transition: transform 0.15s ease, opacity 0.15s ease !important;
+}
+.anim-less .drawer-enter-active,
+.anim-less .drawer-leave-active {
+  transition: transform 0.15s ease !important;
+}
+.anim-less .neo-checkmark {
+  transition: background-color 0.1s ease, border-color 0.1s ease !important;
+  transform: none !important;
+}
+.anim-less .neo-checkbox-container:hover .neo-checkmark {
+  transform: none !important;
+  box-shadow: 1px 1px 0px 0px var(--shadow-color) !important;
+}
+.anim-less .neo-checkbox-container input:checked ~ .neo-checkmark {
+  transform: translate(1px, 1px) !important;
+}
+.anim-less .check-svg {
+  transition: opacity 0.1s ease !important;
+  transform: none !important;
+}
+.anim-less .neo-checkbox-container input:checked ~ .neo-checkmark .check-svg {
+  transform: none !important;
+}
+.anim-less .neo-btn,
+.anim-less .neo-input,
+.anim-less .task-item,
+.anim-less .delete-btn,
+.anim-less .undo-done-btn,
+.anim-less .dismiss-done-btn,
+.anim-less .assignee-toggle-btn,
+.anim-less .task-assignee-badge,
+.anim-less .toggle-theme-btn svg,
+.anim-less .toggle-history-btn svg,
+.anim-less .toggle-settings-btn svg {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease !important;
+  transform: none !important;
+}
+.anim-less .neo-btn:hover,
+.anim-less .neo-input:hover,
+.anim-less .task-item:hover,
+.anim-less .assignee-toggle-btn:hover,
+.anim-less .toggle-theme-btn:hover svg,
+.anim-less .toggle-history-btn:hover svg,
+.anim-less .toggle-settings-btn:hover svg {
+  transform: none !important;
+}
+.anim-less .task-item:hover .delete-btn {
+  opacity: 0.8 !important;
+  width: 24px !important;
+  margin-left: 8px !important;
+  padding: 4px 8px !important;
+  transform: none !important;
+}
+.anim-less .last-done-banner:hover .undo-done-btn,
+.anim-less .last-done-banner:hover .dismiss-done-btn {
+  opacity: 0.8 !important;
+  transform: none !important;
+}
+.anim-less .badge-enter-active,
+.anim-less .badge-leave-active {
+  animation: none !important;
+  transition: opacity 0.15s ease !important;
+}
+.anim-less .badge-enter-from,
+.anim-less .badge-leave-to {
+  opacity: 0;
 }
 </style>

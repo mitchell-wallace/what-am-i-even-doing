@@ -63,6 +63,11 @@ To trigger manual previews/production updates:
    vercel --prod
    ```
 
+### 🔄 Development Cadence & CI/CD
+
+- **Direct-to-Main**: Since this is a simple personal utility, we follow a direct-to-main branching and pushing workflow. A broken `main` branch is low-consequence, allowing fast iteration cycles without complex pull requests.
+- **Vercel Builds**: Pushing directly to the `main` branch triggers an automated Vercel production deployment. Always verify builds pass locally before pushing.
+
 ---
 
 ## 💾 LocalStorage Schema
