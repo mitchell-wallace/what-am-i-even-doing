@@ -512,6 +512,137 @@ function clearHistory() {
   }
 }
 
+// --- Instance Select ---
+function selectInstance(id) {
+  editingTaskId.value = null
+  editingName.value = ''
+  
+  instanceId.value = id
+  sessionStorage.setItem('waied_instance_id', id.toString())
+  loadState()
+}
+
+// --- Data Backup (JSON Import / Export) ---
+function exportJSON() {
+  try {
+    const backup = {}
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('waied_')) {
+        backup[key] = localStorage.getItem(key)
+      }
+    }
+    const dataStr = JSON.stringify(backup, null, 2)
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    
+    const link = document.createElement('a')
+    const date = new Date().toISOString().split('T')[0]
+    link.href = url
+    link.download = `waied-backup-${date}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    alert('Failed to export backup: ' + e.message)
+  }
+}
+
+const fileInputRef = ref(null)
+const confirmModal = ref(null)
+const importedData = ref(null)
+
+function triggerImport() {
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
+  }
+}
+
+function handleImportJSON(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const json = JSON.parse(e.target.result)
+      const keys = Object.keys(json)
+      const hasWaiedKeys = keys.some(key => key.startsWith('waied_'))
+      if (!hasWaiedKeys) {
+        alert('Invalid backup file. No settings or task lists found.')
+        event.target.value = ''
+        return
+      }
+      
+      importedData.value = json
+      if (confirmModal.value) {
+        confirmModal.value.showModal()
+        setupDialogFallback()
+      }
+    } catch (err) {
+      alert('Failed to parse JSON: ' + err.message)
+      event.target.value = ''
+    }
+  }
+  reader.readAsText(file)
+}
+
+function confirmImport() {
+  if (!importedData.value) return
+  try {
+    const keysToRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('waied_')) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key))
+    
+    Object.keys(importedData.value).forEach(key => {
+      localStorage.setItem(key, importedData.value[key])
+    })
+    
+    if (confirmModal.value) {
+      confirmModal.value.close()
+    }
+    window.location.reload()
+  } catch (e) {
+    alert('Failed to restore backup: ' + e.message)
+  }
+}
+
+function cancelImport() {
+  importedData.value = null
+  if (confirmModal.value) {
+    confirmModal.value.close()
+  }
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+function setupDialogFallback() {
+  const dialog = confirmModal.value
+  if (!dialog) return
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return
+      const rect = dialog.getBoundingClientRect()
+      const isDialogContent = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      )
+      if (!isDialogContent) {
+        cancelImport()
+      }
+    })
+  }
+}
+
 // --- Native Drag and Drop ---
 function onDragStart(index) {
   draggedIndex.value = index
@@ -542,6 +673,7 @@ function onDrop(index) {
 onMounted(() => {
   loadState()
   applyTheme()
+  applyAnimations()
   
   // Listen for system theme changes in auto mode
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -564,7 +696,7 @@ onMounted(() => {
   
   // Suggest a compact size if running inside a standalone desktop window
   if (window.matchMedia('(display-mode: standalone)').matches) {
-    window.resizeTo(420, 720)
+    window.resizeTo(400, 700)
   }
 })
 
@@ -1317,7 +1449,7 @@ async function triggerInstall() {
   gap: 8px;
 }
 
-.toggle-theme-btn,
+.toggle-settings-btn,
 .toggle-history-btn {
   width: 38px;
   height: 38px;
@@ -2381,111 +2513,4 @@ async function triggerInstall() {
   flex: 1;
 }
 
-/* Animations Reduction Level CSS utility overrides */
-
-/* None Level - strip transitions/animations */
-.anim-none *,
-.anim-none *::before,
-.anim-none *::after {
-  animation: none !important;
-  transition: none !important;
-}
-
-/* Less Level - remove heavy motion and infinite scroll, keep basic fades/colors */
-.anim-less .logo-letter-anim {
-  animation: none !important;
-}
-.anim-less .dotted-line:hover {
-  animation: none !important;
-}
-.anim-less .tagline-word {
-  transition: color 0.1s ease !important;
-  transform: none !important;
-}
-.anim-less .tagline-word:hover {
-  transform: none !important;
-}
-.anim-less .tagline-word.is-flashing {
-  animation: none !important;
-}
-.anim-less .tagline-word.is-clicked {
-  animation: none !important;
-}
-.anim-less .pop-focus {
-  animation: none !important;
-}
-.anim-less .pop-entry {
-  animation: none !important;
-}
-.anim-less .list-enter-active,
-.anim-less .list-leave-active,
-.anim-less .list-move {
-  transition: transform 0.15s ease, opacity 0.15s ease !important;
-}
-.anim-less .drawer-enter-active,
-.anim-less .drawer-leave-active {
-  transition: transform 0.15s ease !important;
-}
-.anim-less .neo-checkmark {
-  transition: background-color 0.1s ease, border-color 0.1s ease !important;
-  transform: none !important;
-}
-.anim-less .neo-checkbox-container:hover .neo-checkmark {
-  transform: none !important;
-  box-shadow: 1px 1px 0px 0px var(--shadow-color) !important;
-}
-.anim-less .neo-checkbox-container input:checked ~ .neo-checkmark {
-  transform: translate(1px, 1px) !important;
-}
-.anim-less .check-svg {
-  transition: opacity 0.1s ease !important;
-  transform: none !important;
-}
-.anim-less .neo-checkbox-container input:checked ~ .neo-checkmark .check-svg {
-  transform: none !important;
-}
-.anim-less .neo-btn,
-.anim-less .neo-input,
-.anim-less .task-item,
-.anim-less .delete-btn,
-.anim-less .undo-done-btn,
-.anim-less .dismiss-done-btn,
-.anim-less .assignee-toggle-btn,
-.anim-less .task-assignee-badge,
-.anim-less .toggle-theme-btn svg,
-.anim-less .toggle-history-btn svg,
-.anim-less .toggle-settings-btn svg {
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease !important;
-  transform: none !important;
-}
-.anim-less .neo-btn:hover,
-.anim-less .neo-input:hover,
-.anim-less .task-item:hover,
-.anim-less .assignee-toggle-btn:hover,
-.anim-less .toggle-theme-btn:hover svg,
-.anim-less .toggle-history-btn:hover svg,
-.anim-less .toggle-settings-btn:hover svg {
-  transform: none !important;
-}
-.anim-less .task-item:hover .delete-btn {
-  opacity: 0.8 !important;
-  width: 24px !important;
-  margin-left: 8px !important;
-  padding: 4px 8px !important;
-  transform: none !important;
-}
-.anim-less .last-done-banner:hover .undo-done-btn,
-.anim-less .last-done-banner:hover .dismiss-done-btn {
-  opacity: 0.8 !important;
-  transform: none !important;
-}
-.anim-less .badge-enter-active,
-.anim-less .badge-leave-active {
-  animation: none !important;
-  transition: opacity 0.15s ease !important;
-}
-.anim-less .badge-enter-from,
-.anim-less .badge-leave-to {
-  opacity: 0;
-}
 </style>

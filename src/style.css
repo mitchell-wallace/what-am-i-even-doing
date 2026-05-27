@@ -245,3 +245,120 @@ body {
     box-shadow: none !important;
   }
 }
+
+/* Animations Reduction Level CSS utility overrides (Applied globally to avoid scoped prefixing) */
+
+/* None Level - strip transitions/animations */
+.anim-none *,
+.anim-none *::before,
+.anim-none *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Less Level - remove heavy motion and infinite scroll, keep basic fades/colors */
+.anim-less .logo-letter-anim {
+  animation: none !important;
+}
+.anim-less .dotted-line:hover {
+  animation: none !important;
+}
+.anim-less .tagline-word {
+  transition: color 0.1s ease !important;
+  transform: none !important;
+}
+.anim-less .tagline-word:hover {
+  transform: none !important;
+}
+.anim-less .tagline-word.is-flashing {
+  animation: none !important;
+}
+.anim-less .tagline-word.is-clicked {
+  animation: none !important;
+}
+.anim-less .pop-focus {
+  animation: none !important;
+}
+.anim-less .pop-entry {
+  animation: none !important;
+}
+.anim-less .list-enter-active,
+.anim-less .list-leave-active,
+.anim-less .list-move {
+  transition: transform 0.15s ease, opacity 0.15s ease !important;
+}
+.anim-less .drawer-enter-active,
+.anim-less .drawer-leave-active {
+  transition: transform 0.15s ease !important;
+}
+.anim-less .neo-checkmark {
+  transition: background-color 0.1s ease, border-color 0.1s ease !important;
+  transform: none !important;
+}
+.anim-less .neo-checkbox-container:hover .neo-checkmark {
+  transform: none !important;
+  box-shadow: 1px 1px 0px 0px var(--shadow-color) !important;
+}
+.anim-less .neo-checkbox-container input:checked ~ .neo-checkmark {
+  transform: translate(1px, 1px) !important;
+}
+.anim-less .check-svg {
+  transition: opacity 0.1s ease !important;
+  transform: none !important;
+}
+.anim-less .neo-checkbox-container input:checked ~ .neo-checkmark .check-svg {
+  transform: none !important;
+}
+.anim-less .neo-btn,
+.anim-less .neo-input,
+.anim-less .task-item,
+.anim-less .delete-btn,
+.anim-less .undo-done-btn,
+.anim-less .dismiss-done-btn,
+.anim-less .assignee-toggle-btn,
+.anim-less .task-assignee-badge,
+.anim-less .toggle-settings-btn svg,
+.anim-less .toggle-history-btn svg {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease !important;
+  transform: none !important;
+}
+.anim-less .neo-btn:hover,
+.anim-less .neo-input:hover,
+.anim-less .task-item:hover,
+.anim-less .assignee-toggle-btn:hover,
+.anim-less .toggle-history-btn:hover svg,
+.anim-less .toggle-settings-btn:hover svg {
+  transform: none !important;
+}
+.anim-less .task-item:hover .delete-btn {
+  opacity: 0.8 !important;
+  width: 24px !important;
+  margin-left: 8px !important;
+  padding: 4px 8px !important;
+  transform: none !important;
+}
+.anim-less .last-done-banner:hover .undo-done-btn,
+.anim-less .last-done-banner:hover .dismiss-done-btn {
+  opacity: 0.8 !important;
+  transform: none !important;
+}
+.anim-less .badge-enter-active,
+.anim-less .badge-leave-active {
+  animation: none !important;
+  transition: opacity 0.15s ease !important;
+}
+.anim-less .badge-enter-from,
+.anim-less .badge-leave-to {
+  opacity: 0;
+}
+
+/* Assignee hover colors (light shades) in both animations modes */
+.assignee-toggle-btn:hover:not(.active-human):nth-child(1) {
+  background-color: rgba(255, 120, 73, 0.15) !important;
+}
+.assignee-toggle-btn:hover:not(.active-robot):nth-child(2) {
+  background-color: rgba(61, 124, 255, 0.15) !important;
+}
+.assignee-toggle-btn:hover:not(.active-waiting):nth-child(3) {
+  background-color: rgba(157, 78, 221, 0.15) !important;
+}
