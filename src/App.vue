@@ -717,7 +717,7 @@ onMounted(() => {
   
   // Suggest a compact size if running inside a standalone desktop window
   if (window.matchMedia('(display-mode: standalone)').matches) {
-    window.resizeTo(400, 700)
+    window.resizeTo(400, 800)
   }
 })
 
@@ -750,6 +750,7 @@ async function triggerInstall() {
           <span 
             v-if="currentInstanceLabel" 
             class="instance-badge neo-card" 
+            :class="'instance-badge-' + instanceId"
             @click.stop="showSettings = !showSettings; showHistory = false" 
             :title="`Workspace Instance ${instanceId}: ${currentInstanceLabel}`"
           >
@@ -1243,7 +1244,7 @@ async function triggerInstall() {
                     v-for="id in 5" 
                     :key="id"
                     class="neo-btn instance-btn" 
-                    :class="{ 'active-instance-btn': instanceId === id }"
+                    :class="['instance-btn-' + id, { 'active-instance-btn': instanceId === id }]"
                     @click="selectInstance(id)"
                   >
                     {{ id }}
@@ -1374,6 +1375,27 @@ async function triggerInstall() {
 .instance-badge:active {
   transform: translate(1px, 1px);
   box-shadow: 0.5px 0.5px 0px 0px var(--shadow-color);
+}
+
+.instance-badge-1 {
+  background-color: var(--accent-active);
+  color: var(--text-on-accent);
+}
+.instance-badge-2 {
+  background-color: var(--accent-pink);
+  color: var(--text-on-accent);
+}
+.instance-badge-3 {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+}
+.instance-badge-4 {
+  background-color: var(--accent-orange);
+  color: var(--text-on-accent);
+}
+.instance-badge-5 {
+  background-color: var(--accent-purple);
+  color: #ffffff;
 }
 
 .dotted-line {
@@ -2549,13 +2571,43 @@ async function triggerInstall() {
   padding: 8px 0;
   font-size: 13px;
   font-weight: 800;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
 
-.active-instance-btn {
-  background-color: var(--accent-orange);
-  color: var(--text-on-accent);
-  box-shadow: var(--shadow-active);
-  transform: translate(1px, 1px);
+.instance-btn-1 {
+  background-color: var(--accent-active) !important;
+  color: var(--text-on-accent) !important;
+}
+.instance-btn-2 {
+  background-color: var(--accent-pink) !important;
+  color: var(--text-on-accent) !important;
+}
+.instance-btn-3 {
+  background-color: var(--accent-blue) !important;
+  color: #ffffff !important;
+}
+.instance-btn-4 {
+  background-color: var(--accent-orange) !important;
+  color: var(--text-on-accent) !important;
+}
+.instance-btn-5 {
+  background-color: var(--accent-purple) !important;
+  color: #ffffff !important;
+}
+
+.instance-btn:not(.active-instance-btn) {
+  opacity: 0.55;
+}
+
+.instance-btn:not(.active-instance-btn):hover {
+  opacity: 0.85;
+}
+
+.active-instance-btn,
+.active-instance-btn:hover {
+  opacity: 1 !important;
+  box-shadow: var(--shadow-active) !important;
+  transform: translate(1px, 1px) !important;
 }
 
 .backup-buttons {
