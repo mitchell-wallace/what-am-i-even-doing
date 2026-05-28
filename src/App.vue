@@ -148,6 +148,11 @@ const theme = ref('auto')
 const maxAttention = ref(5)
 const animations = ref('all') // 'all' | 'less' | 'none'
 const instanceId = ref(1)
+const instanceLabels = ref(['', '', '', '', ''])
+
+const currentInstanceLabel = computed(() => {
+  return instanceLabels.value[instanceId.value - 1] || ''
+})
 
 // Init instanceId from sessionStorage on startup
 if (typeof window !== 'undefined') {
@@ -194,7 +199,8 @@ const STORAGE_KEYS = {
   THEME: 'waied_theme_v1',
   HAS_EDITED: 'waied_has_edited_v1',
   ANIMATIONS: 'waied_animations_v1',
-  MAX_ATTENTION: 'waied_max_attention_v1'
+  MAX_ATTENTION: 'waied_max_attention_v1',
+  INSTANCE_LABELS: 'waied_instance_labels_v1'
 }
 
 // Dynamic Key Scoper for separate virtual desktop instances
@@ -228,6 +234,17 @@ function loadState() {
     const savedHasEdited = localStorage.getItem(STORAGE_KEYS.HAS_EDITED)
     if (savedHasEdited) {
       hasUsedDoubleClick.value = JSON.parse(savedHasEdited)
+    }
+
+    const savedLabels = localStorage.getItem(STORAGE_KEYS.INSTANCE_LABELS)
+    if (savedLabels) {
+      try {
+        instanceLabels.value = JSON.parse(savedLabels)
+      } catch (e) {
+        instanceLabels.value = ['', '', '', '', '']
+      }
+    } else {
+      instanceLabels.value = ['', '', '', '', '']
     }
 
     // 2. Instance-Specific task data
@@ -299,6 +316,10 @@ function saveLastDone() {
 
 function saveHistory() {
   localStorage.setItem(getKey(STORAGE_KEYS.HISTORY), JSON.stringify(history.value))
+}
+
+function saveInstanceLabels() {
+  localStorage.setItem(STORAGE_KEYS.INSTANCE_LABELS, JSON.stringify(instanceLabels.value))
 }
 
 // --- Theme Logic ---
@@ -716,15 +737,25 @@ async function triggerInstall() {
     <!-- Header -->
     <header class="app-header">
       <div class="header-main">
-        <h1 class="logo-text" aria-label="WAIED?" @click.stop="showSettings = !showSettings; showHistory = false" title="Click to open settings">
+        <div class="header-logo-group">
+          <h1 class="logo-text" aria-label="WAIED?" @click.stop="showSettings = !showSettings; showHistory = false" title="Click to open settings">
+            <span 
+              v-for="(char, idx) in logoLetters" 
+              :key="idx + '-' + taglineWords[idx]" 
+              class="logo-letter logo-letter-anim"
+            >
+              {{ char }}
+            </span><span class="logo-question">?</span>
+          </h1>
           <span 
-            v-for="(char, idx) in logoLetters" 
-            :key="idx + '-' + taglineWords[idx]" 
-            class="logo-letter logo-letter-anim"
+            v-if="currentInstanceLabel" 
+            class="instance-badge neo-card" 
+            @click.stop="showSettings = !showSettings; showHistory = false" 
+            :title="`Workspace Instance ${instanceId}: ${currentInstanceLabel}`"
           >
-            {{ char }}
-          </span><span class="logo-question">?</span>
-        </h1>
+            {{ currentInstanceLabel }}
+          </span>
+        </div>
         <div class="header-actions">
           <!-- Settings Trigger -->
           <button 
@@ -922,7 +953,9 @@ async function triggerInstall() {
           :class="{ 
             'active-task': task.id === activeTaskId,
             'dragging': draggedIndex === index,
-            'drag-over': dragOverIndex === index
+            'drag-over': dragOverIndex === index,
+            'drag-over-above': dragOverIndex === index && draggedIndex !== null && index > draggedIndex,
+            'drag-over-below': dragOverIndex === index && draggedIndex !== null && index < draggedIndex
           }"
           draggable="true"
           @dragstart="onDragStart(index)"
@@ -1219,6 +1252,17 @@ async function triggerInstall() {
                 <p class="setting-help">
                   <strong>Virtual Desktop helper:</strong> Maps separate windows/tabs to different sets of data. Default is 1.
                 </p>
+                <div class="setting-group" style="margin-top: 10px;">
+                  <span class="setting-label">Instance Label</span>
+                  <input 
+                    v-model="instanceLabels[instanceId - 1]" 
+                    type="text" 
+                    class="neo-input" 
+                    placeholder="e.g. Work, Personal..." 
+                    maxlength="15"
+                    @input="saveInstanceLabels"
+                  />
+                </div>
               </div>
 
               <!-- JSON Import/Export -->
@@ -1295,6 +1339,41 @@ async function triggerInstall() {
 .app-header {
   padding-bottom: 0px;
   cursor: default;
+}
+
+.header-logo-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.instance-badge {
+  font-size: 10px;
+  font-weight: 800;
+  background-color: var(--accent-orange);
+  color: var(--text-on-accent);
+  padding: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 2px solid var(--border-color);
+  box-shadow: 1.5px 1.5px 0px 0px var(--shadow-color);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.instance-badge:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2.5px 2.5px 0px 0px var(--shadow-color);
+}
+
+.instance-badge:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0.5px 0.5px 0px 0px var(--shadow-color);
 }
 
 .dotted-line {
@@ -1681,9 +1760,43 @@ async function triggerInstall() {
 }
 
 .task-item.drag-over {
-  border-color: var(--accent-orange);
-  background-color: rgba(255, 120, 73, 0.1);
-  border-style: dashed;
+  border-color: var(--accent-orange) !important;
+  background-color: rgba(255, 120, 73, 0.1) !important;
+  border-style: dashed !important;
+}
+
+.task-item.drag-over-above {
+  transform: translateY(12px) translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0px 0px var(--shadow-color) !important;
+}
+
+.task-item.drag-over-above::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--accent-orange), var(--accent-orange) 6px, transparent 6px, transparent 12px);
+  border: 1px solid var(--border-color);
+  z-index: 10;
+}
+
+.task-item.drag-over-below {
+  transform: translateY(-12px) translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0px 0px var(--shadow-color) !important;
+}
+
+.task-item.drag-over-below::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--accent-orange), var(--accent-orange) 6px, transparent 6px, transparent 12px);
+  border: 1px solid var(--border-color);
+  z-index: 10;
 }
 
 .drag-handle {
