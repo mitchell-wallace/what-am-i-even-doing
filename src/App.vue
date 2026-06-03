@@ -283,7 +283,13 @@ function loadState() {
 
     const savedHistory = localStorage.getItem(getKey(STORAGE_KEYS.HISTORY))
     if (savedHistory) {
-      history.value = JSON.parse(savedHistory)
+      const parsed = JSON.parse(savedHistory)
+      if (Array.isArray(parsed) && parsed.length > 50) {
+        history.value = parsed.slice(0, 50)
+        saveHistory()
+      } else {
+        history.value = parsed
+      }
     } else {
       history.value = []
     }
@@ -485,7 +491,7 @@ function completeTask(task, index) {
   
   history.value.unshift(completedTask)
   if (history.value.length > 50) {
-    history.value.pop()
+    history.value = history.value.slice(0, 50)
   }
   saveHistory()
   
@@ -622,7 +628,18 @@ function confirmImport() {
     keysToRemove.forEach(key => localStorage.removeItem(key))
     
     Object.keys(importedData.value).forEach(key => {
-      localStorage.setItem(key, importedData.value[key])
+      let value = importedData.value[key]
+      if (key.startsWith('waied_history_v1')) {
+        try {
+          const parsed = JSON.parse(value)
+          if (Array.isArray(parsed) && parsed.length > 50) {
+            value = JSON.stringify(parsed.slice(0, 50))
+          }
+        } catch (e) {
+          console.error('Failed to parse history during import:', e)
+        }
+      }
+      localStorage.setItem(key, value)
     })
     
     if (confirmModal.value) {

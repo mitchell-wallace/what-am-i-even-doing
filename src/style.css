@@ -230,10 +230,11 @@ body {
 }
 
 /* Responsive Small Screens Layout Shift */
-@media (max-width: 440px) {
+@media (max-width: 660px) {
   body {
     padding: 0;
     background-color: var(--bg-card); /* Remove outer body background */
+    min-height: 640px; /* Enforce min-height to maintain at least a ~10:16 ratio relative to 400px min width */
   }
   
   .app-container {
@@ -241,6 +242,7 @@ body {
     max-width: 100% !important;
     width: 100% !important;
     min-height: 100vh !important;
+    min-height: max(100vh, 640px) !important;
     border: none !important;
     box-shadow: none !important;
   }
